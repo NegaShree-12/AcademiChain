@@ -7,7 +7,7 @@ import { Landing } from "./pages/Landing";
 import { Dashboard } from "./pages/Dashboard";
 import { Verify } from "./pages/Verify";
 import NotFound from "./pages/NotFound";
-
+import { InstitutionDashboard } from "./pages/InstitutionDashboard";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -23,6 +23,7 @@ const App = () => (
           <Route path="/verify/:hash" element={<Verify />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
+          <Route path="/institution" element={<InstitutionDashboard />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

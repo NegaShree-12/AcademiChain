@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,6 @@ import {
   BlockchainBadge,
   TrustBadge,
 } from "@/components/VerificationBadge";
-import { mockVerificationResult } from "@/data/mockData";
 import {
   Search,
   ArrowRight,
@@ -22,43 +21,76 @@ import {
   Calendar,
   Hash,
   Building,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type VerificationState =
-  | "idle"
-  | "checking"
-  | "verifying"
-  | "success"
-  | "error";
+import { useBlockchainVerification } from "@/hooks/useBlockchainVerification";
+import { useToast } from "@/hooks/use-toast";
 
 export function Verify() {
   const { hash } = useParams();
   const [inputHash, setInputHash] = useState(hash || "");
-  const [verificationState, setVerificationState] =
-    useState<VerificationState>("idle");
-  const [showResult, setShowResult] = useState(false);
+  const { toast } = useToast();
+
+  // Use real blockchain verification hook
+  const { verifyCredential, isLoading, result, error, resetVerification } =
+    useBlockchainVerification();
+
+  const handleVerify = async () => {
+    if (!inputHash) {
+      toast({
+        title: "No hash provided",
+        description: "Please enter a credential hash or verification URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Reset any previous results
+    resetVerification();
+
+    // Clean and validate the hash
+    let cleanHash = inputHash.trim();
+
+    // If it's a URL, extract the hash
+    if (cleanHash.includes("/verify/")) {
+      const match = cleanHash.match(/\/verify\/(0x[a-fA-F0-9]+)/);
+      if (match) {
+        cleanHash = match[1];
+      }
+    }
+
+    // Validate hash format (basic check)
+    if (!cleanHash.startsWith("0x") || cleanHash.length < 10) {
+      toast({
+        title: "Invalid hash format",
+        description:
+          "Hash should start with '0x' and be at least 10 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setInputHash(cleanHash);
+    await verifyCredential(cleanHash);
+  };
 
   useEffect(() => {
     if (hash) {
+      setInputHash(hash);
       handleVerify();
     }
   }, [hash]);
 
-  const handleVerify = async () => {
-    if (!inputHash) return;
-
-    setVerificationState("checking");
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    setVerificationState("verifying");
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    setVerificationState("success");
-    setShowResult(true);
-  };
-
-  const result = mockVerificationResult;
+  // Determine verification state based on hook
+  const verificationState = isLoading
+    ? "verifying"
+    : error
+      ? "error"
+      : result
+        ? "success"
+        : "idle";
+  const showResult = !!result && !isLoading;
 
   return (
     <div className="min-h-screen bg-background">
@@ -88,21 +120,18 @@ export function Verify() {
                 placeholder="Enter credential hash (0x...) or verification URL..."
                 value={inputHash}
                 onChange={(e) => setInputHash(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleVerify()}
                 className="h-14 pl-12 text-base font-mono"
+                disabled={isLoading}
               />
             </div>
             <Button
               size="lg"
               className="h-14 px-8"
               onClick={handleVerify}
-              disabled={
-                !inputHash ||
-                verificationState === "checking" ||
-                verificationState === "verifying"
-              }
+              disabled={!inputHash || isLoading}
             >
-              {verificationState === "checking" ||
-              verificationState === "verifying" ? (
+              {isLoading ? (
                 <>
                   <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
                   Verifying...
@@ -117,9 +146,33 @@ export function Verify() {
           </div>
         </div>
 
+        {/* Error State */}
+        {error && (
+          <div className="max-w-2xl mx-auto mb-8">
+            <div className="rounded-2xl border border-destructive/50 bg-destructive/10 p-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-destructive mb-1">
+                    Verification Failed
+                  </h3>
+                  <p className="text-destructive/80">{error}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={() => resetVerification()}
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Verification Progress */}
-        {(verificationState === "checking" ||
-          verificationState === "verifying") && (
+        {isLoading && (
           <div className="max-w-md mx-auto mb-12 text-center">
             <div className="flex items-center justify-center gap-4 mb-4">
               {["Checking Hash", "Querying Blockchain", "Verifying Issuer"].map(
@@ -128,9 +181,9 @@ export function Verify() {
                     <div
                       className={cn(
                         "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium transition-all",
-                        index === 0 && verificationState === "checking"
+                        index === 0
                           ? "bg-primary text-primary-foreground animate-pulse"
-                          : index <= 1 && verificationState === "verifying"
+                          : index <= 1
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted text-muted-foreground",
                       )}
@@ -141,9 +194,7 @@ export function Verify() {
                       <div
                         className={cn(
                           "w-8 h-0.5",
-                          index === 0 && verificationState === "verifying"
-                            ? "bg-primary"
-                            : "bg-muted",
+                          index === 0 ? "bg-primary" : "bg-muted",
                         )}
                       />
                     )}
@@ -152,15 +203,13 @@ export function Verify() {
               )}
             </div>
             <p className="text-muted-foreground">
-              {verificationState === "checking"
-                ? "Checking hash format..."
-                : "Querying Ethereum blockchain..."}
+              Querying Ethereum blockchain for credential verification...
             </p>
           </div>
         )}
 
         {/* Verification Result */}
-        {showResult && verificationState === "success" && (
+        {showResult && result.isValid && (
           <div className="max-w-3xl mx-auto animate-fade-in-up">
             {/* Success Banner */}
             <div className="flex flex-col items-center text-center mb-12">
@@ -183,7 +232,7 @@ export function Verify() {
                       Document Type
                     </p>
                     <h3 className="text-2xl font-bold">
-                      {result.credential?.title}
+                      {result.credential?.title || "Academic Credential"}
                     </h3>
                   </div>
                   <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 text-success">
@@ -205,7 +254,8 @@ export function Verify() {
                         Issuing Institution
                       </p>
                       <p className="font-semibold">
-                        {result.credential?.institution}
+                        {result.credential?.institution ||
+                          "Verified Institution"}
                       </p>
                     </div>
                   </div>
@@ -219,31 +269,36 @@ export function Verify() {
                         Issue Date
                       </p>
                       <p className="font-semibold">
-                        {result.credential?.issueDate &&
-                          new Date(
-                            result.credential.issueDate,
-                          ).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
+                        {result.credential?.issueDate
+                          ? new Date(
+                              result.credential.issueDate,
+                            ).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })
+                          : new Date(
+                              result.verifiedAt || Date.now(),
+                            ).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-4">
-                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
+                  {result.credential?.description && (
+                    <div className="flex items-start gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Description
+                        </p>
+                        <p className="font-semibold">
+                          {result.credential.description}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Description
-                      </p>
-                      <p className="font-semibold">
-                        {result.credential?.description || "Bachelor's Degree"}
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="p-6 md:p-8 space-y-6">
@@ -256,7 +311,7 @@ export function Verify() {
                         Transaction Hash
                       </p>
                       <p className="font-mono text-sm break-all">
-                        {result.credential?.txHash}
+                        {result.txHash || inputHash}
                       </p>
                     </div>
                   </div>
@@ -270,31 +325,63 @@ export function Verify() {
                         Block Number
                       </p>
                       <p className="font-mono font-semibold">
-                        #{result.credential?.blockNumber.toLocaleString()}
+                        #{result.blockNumber?.toLocaleString() || "Pending"}
                       </p>
                     </div>
                   </div>
 
-                  <BlockchainBadge confirmations={result.blockConfirmations} />
+                  <BlockchainBadge confirmations={result.confirmations || 1} />
                 </div>
               </div>
 
               {/* Issuer Verification */}
               <div className="p-6 md:p-8 border-t border-border/50 bg-muted/30">
                 <TrustBadge
-                  institution={result.issuer.name}
-                  verified={result.issuer.verified}
+                  institution={result.issuer?.name || "Blockchain Verified"}
+                  verified={result.issuer?.verified || true}
                 />
               </div>
             </div>
 
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button className="flex-1 gap-2">
+              <Button
+                className="flex-1 gap-2"
+                onClick={() => {
+                  // Generate verification certificate
+                  const certificate =
+                    `AcademiChain Verification Certificate\n\n` +
+                    `Credential: ${result.credential?.title || "Verified Credential"}\n` +
+                    `Institution: ${result.credential?.institution || "Verified Issuer"}\n` +
+                    `Transaction: ${result.txHash}\n` +
+                    `Block: ${result.blockNumber}\n` +
+                    `Verified: ${new Date(result.verifiedAt || Date.now()).toLocaleString()}\n` +
+                    `Status: ✅ Verified on Blockchain`;
+
+                  const blob = new Blob([certificate], { type: "text/plain" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `verification-${result.txHash?.slice(0, 8) || "certificate"}.txt`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
                 <Download className="h-4 w-4" />
                 Download Verification Certificate
               </Button>
-              <Button variant="outline" className="flex-1 gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 gap-2"
+                onClick={() => {
+                  if (result.txHash) {
+                    window.open(
+                      `https://sepolia.etherscan.io/tx/${result.txHash}`,
+                      "_blank",
+                    );
+                  }
+                }}
+              >
                 <ExternalLink className="h-4 w-4" />
                 View on Block Explorer
               </Button>
@@ -303,7 +390,7 @@ export function Verify() {
         )}
 
         {/* Help Section (shown when idle) */}
-        {verificationState === "idle" && !showResult && (
+        {verificationState === "idle" && !showResult && !error && (
           <div className="max-w-2xl mx-auto">
             <div className="rounded-2xl border border-border/50 bg-card p-8">
               <h3 className="font-semibold mb-4">How to verify a credential</h3>
