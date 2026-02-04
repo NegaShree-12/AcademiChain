@@ -28,5 +28,18 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      console.log("MetaMask debug script loaded");
+
+      // Check if MetaMask is detected
+      if (typeof window.ethereum !== "undefined") {
+        console.log("✅ MetaMask detected:", {
+          isMetaMask: window.ethereum.isMetaMask,
+          chainId: window.ethereum.chainId,
+        });
+      } else {
+        console.log("❌ MetaMask not detected");
+      }
+    </script>
   </body>
 </html>
