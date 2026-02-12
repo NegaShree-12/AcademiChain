@@ -112,6 +112,17 @@ export const mockRecentActivity = [
     timestamp: "2024-01-08T14:20:00Z",
     txHash: "0x1a2b3c4d5e6f7a8b...",
   },
+  {
+    id: "6",
+    title: "Blockchain Developer Certification",
+    type: "certificate",
+    institution: "Ethereum Foundation",
+    issueDate: "2024-03-05",
+    txHash: "0x9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d",
+    blockNumber: 19123456,
+    status: "pending",
+    description: "Pending blockchain confirmation",
+  },
 ];
 
 export const partnerInstitutions = [

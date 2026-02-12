@@ -50,7 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function Dashboard() {
+export function StudentDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -64,8 +64,30 @@ export function Dashboard() {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedType, setSelectedType] = useState<string>("all");
   const qrRef = useRef<HTMLDivElement>(null);
+  const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchCredentials();
+  }, []);
+
+  const fetchCredentials = async () => {
+    try {
+      const response = await credentialAPI.getAll();
+      setCredentials(response.data);
+    } catch (error) {
+      console.error("Failed to fetch credentials:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load credentials",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filter credentials based on search and filters
   const filteredCredentials = mockCredentials.filter((cred) => {

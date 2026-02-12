@@ -6,13 +6,15 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import { authAPI } from "@/lib/api"; // ← ADD THIS
+import { useToast } from "@/hooks/use-toast"; // ← ADD THIS
 
 interface User {
   id: string;
   email: string;
   name: string;
   walletAddress: string;
-  role: "student" | "institution" | "verifier";
+  role: "student" | "institution" | "verifier" | "admin" | ""; // ← Added admin and empty role
   institution?: string;
 }
 
@@ -29,6 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast(); // ← ADD THIS
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -44,25 +47,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (walletAddress: string) => {
-    // Mock user data - replace with real API call
-    const mockUser: User = {
-      id: "1",
-      email: `user-${walletAddress.slice(2, 8)}@example.com`,
-      name: `User ${walletAddress.slice(2, 8)}`,
-      walletAddress: walletAddress.toLowerCase(),
-      role: "student",
-      institution: "Example University",
-    };
+    try {
+      setIsLoading(true); // ← ADD THIS
 
-    setUser(mockUser);
-    localStorage.setItem("user", JSON.stringify(mockUser));
-    return Promise.resolve();
+      // Call backend
+      const response = await authAPI.walletLogin({
+        walletAddress,
+        signature: "mock_signature_for_now",
+        message: `Login to AcademiChain at ${Date.now()}`,
+      });
+
+      const { token, user } = response.data;
+
+      // Store token and user
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+      setUser(user);
+
+      toast({
+        title: "Connected Successfully",
+        description: `Welcome${user.name ? `, ${user.name}` : ""}!`,
+      });
+
+      return Promise.resolve();
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast({
+        title: "Login Failed",
+        description: error?.userMessage || "Failed to login",
+        variant: "destructive",
+      });
+      return Promise.reject(error);
+    } finally {
+      setIsLoading(false); // ← ADD THIS
+    }
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+    toast({
+      title: "Disconnected",
+      description: "Wallet has been disconnected",
+    });
   };
 
   const updateUser = (data: Partial<User>) => {

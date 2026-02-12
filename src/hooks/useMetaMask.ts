@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { BrowserProvider } from "ethers";
+import { authAPI } from "@/lib/api";
 
 declare global {
   interface Window {
@@ -73,29 +74,40 @@ export function useMetaMask() {
 
   const connect = async () => {
     if (!isInstalled) {
-      alert("Please install MetaMask extension");
       window.open("https://metamask.io/download", "_blank");
-      return;
+      throw new Error("MetaMask not installed");
     }
 
     setIsConnecting(true);
 
     try {
-      if (!window.ethereum) return;
-
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
 
       if (accounts.length > 0) {
-        setAccount(accounts[0]);
+        const signer = await provider.getSigner();
+        const address = accounts[0];
+
+        // Sign message for authentication
+        const message = `Login to AcademiChain at ${Date.now()}`;
+        const signature = await signer.signMessage(message);
+
+        setAccount(address);
+
+        // Login to backend with signature
+        await authAPI.walletLogin(address, signature);
+
         const network = await provider.getNetwork();
         setChainId(Number(network.chainId));
+
+        return { address, signature };
       }
     } catch (err: any) {
       console.error("Connection error:", err);
       if (err.code === 4001) {
-        alert("Please connect to MetaMask to continue");
+        throw new Error("Please connect to MetaMask to continue");
       }
+      throw err;
     } finally {
       setIsConnecting(false);
     }

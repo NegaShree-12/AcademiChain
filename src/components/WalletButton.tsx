@@ -1,9 +1,11 @@
-// /components/WalletButton.tsx
+// frontend/src/components/WalletButton.tsx
 import { Button } from "@/components/ui/button";
 import { Wallet, Loader2, CheckCircle } from "lucide-react";
+import { useState } from "react";
 import { useMetaMask } from "@/hooks/useMetaMask";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { RoleSelector } from "@/components/auth/RoleSelector";
 
 export function WalletButton() {
   const {
@@ -16,7 +18,8 @@ export function WalletButton() {
   } = useMetaMask();
 
   const { toast } = useToast();
-  const { login, logout } = useAuth();
+  const { login, logout, user } = useAuth();
+  const [roleSelectorOpen, setRoleSelectorOpen] = useState(false);
 
   const truncateAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -33,6 +36,18 @@ export function WalletButton() {
           title: "Connected Successfully",
           description: `Wallet ${truncateAddress(account)} connected`,
         });
+
+        // After successful login, check if user has a role assigned
+        // If not, open role selector modal
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          if (!parsed.role) {
+            setRoleSelectorOpen(true);
+          }
+        } else {
+          setRoleSelectorOpen(true);
+        }
       }
     } catch (error: any) {
       console.error("Connection error:", error);
@@ -89,30 +104,44 @@ export function WalletButton() {
   // If connected
   if (isConnected && account) {
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-          <CheckCircle className="h-4 w-4 text-green-500" />
-          <span className="font-mono text-sm font-medium">
-            {truncateAddress(account)}
-          </span>
+      <>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <span className="font-mono text-sm font-medium">
+              {truncateAddress(account)}
+            </span>
+          </div>
+          <Button
+            onClick={handleDisconnect}
+            variant="outline"
+            size="sm"
+            className="h-9"
+          >
+            Disconnect
+          </Button>
         </div>
-        <Button
-          onClick={handleDisconnect}
-          variant="outline"
-          size="sm"
-          className="h-9"
-        >
-          Disconnect
-        </Button>
-      </div>
+        <RoleSelector
+          open={roleSelectorOpen}
+          onOpenChange={setRoleSelectorOpen}
+          walletAddress={account}
+        />
+      </>
     );
   }
 
   // Default state - not connected
   return (
-    <Button onClick={handleConnect} variant="wallet" className="gap-2">
-      <Wallet className="h-5 w-5" />
-      Connect Wallet
-    </Button>
+    <>
+      <Button onClick={handleConnect} variant="wallet" className="gap-2">
+        <Wallet className="h-5 w-5" />
+        Connect Wallet
+      </Button>
+      <RoleSelector
+        open={roleSelectorOpen}
+        onOpenChange={setRoleSelectorOpen}
+        walletAddress={account || ""}
+      />
+    </>
   );
 }

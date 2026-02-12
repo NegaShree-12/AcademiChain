@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { credentialAPI } from "@/lib/api";
+import { mockCredentials } from "@/data/mockData";
 
 export function Verify() {
   const { hash } = useParams();
@@ -49,44 +50,55 @@ export function Verify() {
       // Simulate API call delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Mock verification result
-      const mockResult = {
-        isValid: true,
-        credential: {
-          id: "1",
-          title: "Bachelor of Computer Science",
-          type: "degree",
-          institution: "Massachusetts Institute of Technology",
-          issueDate: "2023-06-15",
+      // Check if hash matches any mock credential
+      const matchingCredential = mockCredentials.find(
+        (cred) => cred.txHash === hashToVerify || cred.id === hashToVerify,
+      );
+
+      if (matchingCredential) {
+        // Valid credential found
+        const mockResult = {
+          isValid: matchingCredential.status === "verified",
+          credential: matchingCredential,
           txHash: hashToVerify,
-          blockNumber: 18234567,
-          status: "verified",
-          description: "Awarded with Honors, GPA: 3.85/4.0",
-        },
-        txHash: hashToVerify,
-        blockNumber: 18234567,
-        confirmations: 145678,
-        verifiedAt: new Date().toISOString(),
-        issuer: {
-          name: "Massachusetts Institute of Technology",
-          address: "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD45",
-          verified: true,
-        },
-      };
+          blockNumber: matchingCredential.blockNumber,
+          confirmations: 145678,
+          verifiedAt: new Date().toISOString(),
+          issuer: {
+            name: matchingCredential.institution,
+            address: "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD45",
+            verified: true,
+          },
+        };
+        setVerificationResult(mockResult);
 
-      setVerificationResult(mockResult);
-
-      toast({
-        title: "Verification Successful",
-        description: "Credential verified on blockchain",
-      });
+        toast({
+          title:
+            matchingCredential.status === "verified"
+              ? "✅ Verification Successful"
+              : "⚠️ Credential Found - Pending Verification",
+          description:
+            matchingCredential.status === "verified"
+              ? "Credential verified on blockchain"
+              : "This credential is still pending verification",
+          variant:
+            matchingCredential.status === "verified" ? "default" : "warning",
+        });
+      } else {
+        // No matching credential found
+        setVerificationError("Credential not found on blockchain");
+        toast({
+          title: "❌ Verification Failed",
+          description: "No matching credential found",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Verification failed";
       setVerificationError(errorMessage);
-
       toast({
-        title: "Verification Failed",
+        title: "❌ Verification Failed",
         description: errorMessage,
         variant: "destructive",
       });
