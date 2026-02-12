@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { BrowserProvider } from "ethers";
-import { authAPI } from "@/lib/api";
 
 declare global {
   interface Window {
@@ -13,24 +12,21 @@ export function useMetaMask() {
   const [chainId, setChainId] = useState<number>(0);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [hasAttemptedConnection, setHasAttemptedConnection] = useState(false);
 
-  // Check if MetaMask is installed
   useEffect(() => {
     const checkMetaMask = () => {
       const hasMetaMask = typeof window.ethereum !== "undefined";
       setIsInstalled(hasMetaMask);
-
-      if (hasMetaMask) {
-        // Check if already connected
-        checkConnection();
-
-        // Listen for account changes
-        window.ethereum.on("accountsChanged", handleAccountsChanged);
-        window.ethereum.on("chainChanged", handleChainChanged);
-      }
     };
 
     checkMetaMask();
+
+    // Set up listeners but DON'T auto-connect
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", handleAccountsChanged);
+      window.ethereum.on("chainChanged", handleChainChanged);
+    }
 
     return () => {
       if (window.ethereum) {
@@ -43,33 +39,16 @@ export function useMetaMask() {
     };
   }, []);
 
-  const checkConnection = async () => {
-    try {
-      if (!window.ethereum) return;
-
-      const provider = new BrowserProvider(window.ethereum);
-      const accounts = await provider.send("eth_accounts", []);
-      if (accounts.length > 0) {
-        setAccount(accounts[0]);
-        const network = await provider.getNetwork();
-        setChainId(Number(network.chainId));
-      }
-    } catch (err) {
-      console.error("Failed to check connection:", err);
-    }
-  };
-
   const handleAccountsChanged = (accounts: string[]) => {
     if (accounts.length === 0) {
-      // User disconnected
       disconnect();
     } else {
-      setAccount(accounts[0]);
+      setAccount(accounts[0].toLowerCase());
     }
   };
 
   const handleChainChanged = () => {
-    window.location.reload(); // Reload on network change
+    window.location.reload();
   };
 
   const connect = async () => {
@@ -79,6 +58,7 @@ export function useMetaMask() {
     }
 
     setIsConnecting(true);
+    setHasAttemptedConnection(true);
 
     try {
       const provider = new BrowserProvider(window.ethereum);
@@ -86,27 +66,21 @@ export function useMetaMask() {
 
       if (accounts.length > 0) {
         const signer = await provider.getSigner();
-        const address = accounts[0];
+        const address = accounts[0].toLowerCase();
 
-        // Sign message for authentication
         const message = `Login to AcademiChain at ${Date.now()}`;
         const signature = await signer.signMessage(message);
 
+        console.log("✅ Signature obtained");
         setAccount(address);
-
-        // Login to backend with signature
-        await authAPI.walletLogin(address, signature);
 
         const network = await provider.getNetwork();
         setChainId(Number(network.chainId));
 
-        return { address, signature };
+        return { address, signature, message };
       }
     } catch (err: any) {
-      console.error("Connection error:", err);
-      if (err.code === 4001) {
-        throw new Error("Please connect to MetaMask to continue");
-      }
+      console.error("❌ Connection error:", err);
       throw err;
     } finally {
       setIsConnecting(false);
@@ -116,6 +90,7 @@ export function useMetaMask() {
   const disconnect = () => {
     setAccount("");
     setChainId(0);
+    setHasAttemptedConnection(false);
   };
 
   return {
@@ -123,13 +98,8 @@ export function useMetaMask() {
     account,
     chainId,
     isConnecting,
-    isConnected: !!account,
+    isConnected: !!account && hasAttemptedConnection, // ✅ Only true if user clicked connect
     connect,
     disconnect,
-    getSigner: async () => {
-      if (!window.ethereum || !account) return null;
-      const provider = new BrowserProvider(window.ethereum);
-      return await provider.getSigner();
-    },
   };
 }

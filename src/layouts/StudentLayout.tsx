@@ -24,7 +24,7 @@ const studentNavItems = [
     href: "/student/verifications",
     icon: History,
     label: "Verification History",
-  },
+  }, // ← ADD THIS
   { href: "/student/settings", icon: Settings, label: "Settings" },
 ];
 

@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { RoleLayout } from "@/layouts/RoleLayout";
+import { useAuth } from "@/contexts/AuthContext"; // ← THIS WAS MISSING!
 
 // Public Pages
 import { Landing } from "./pages/Landing";
@@ -12,8 +13,10 @@ import NotFound from "./pages/NotFound";
 
 // Student Pages
 import { StudentDashboard } from "./pages/Dashboard";
-// import { CredentialDetailPage } from './pages/student/CredentialDetailPage';
-// import { SettingsPage } from './pages/student/SettingsPage';
+import { CredentialDetailPage } from "./pages/student/CredentialDetailPage";
+import { SettingsPage } from "./pages/student/SettingsPage";
+import { SharedLinksPage } from "./pages/student/SharedLinksPage";
+import { VerificationHistoryPage } from "./pages/student/VerificationHistoryPage";
 
 // Institution Pages
 import { InstitutionDashboard } from "./pages/InstitutionDashboard";
@@ -24,7 +27,6 @@ import { VerifierDashboard } from "./pages/verifier/VerifierDashboard";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import { useAuth } from "@/contexts/AuthContext"; // ← Add this
 
 function App() {
   return (
@@ -59,8 +61,7 @@ function App() {
               element={
                 <RoleGuard allowedRoles={["student"]}>
                   <RoleLayout>
-                    {/* <CredentialDetailPage /> */} {/* TODO: create */}
-                    <div>Credential Detail Page (Coming Soon)</div>
+                    <CredentialDetailPage />
                   </RoleLayout>
                 </RoleGuard>
               }
@@ -70,8 +71,27 @@ function App() {
               element={
                 <RoleGuard allowedRoles={["student"]}>
                   <RoleLayout>
-                    {/* <SettingsPage /> */} {/* TODO: create */}
-                    <div>Settings Page (Coming Soon)</div>
+                    <SettingsPage />
+                  </RoleLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/student/shared"
+              element={
+                <RoleGuard allowedRoles={["student"]}>
+                  <RoleLayout>
+                    <SharedLinksPage />
+                  </RoleLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/student/verifications"
+              element={
+                <RoleGuard allowedRoles={["student"]}>
+                  <RoleLayout>
+                    <VerificationHistoryPage />
                   </RoleLayout>
                 </RoleGuard>
               }
@@ -103,7 +123,9 @@ function App() {
             <Route
               path="/verifier"
               element={
-                <RoleGuard allowedRoles={["employer", "university"]}>
+                <RoleGuard
+                  allowedRoles={["employer", "university", "verifier"]}
+                >
                   <RoleLayout>
                     <VerifierDashboard />
                   </RoleLayout>
@@ -124,23 +146,7 @@ function App() {
             />
 
             {/* Redirect /dashboard based on role */}
-            <Route
-              path="/dashboard"
-              element={
-                <RoleGuard
-                  allowedRoles={[
-                    "student",
-                    "institution",
-                    "employer",
-                    "university",
-                    "admin",
-                  ]}
-                  redirectTo="/"
-                >
-                  <RoleBasedRedirect />
-                </RoleGuard>
-              }
-            />
+            <Route path="/dashboard" element={<RoleBasedRedirect />} />
 
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
@@ -151,10 +157,24 @@ function App() {
   );
 }
 
-// Helper component for redirect
+// Helper component for redirect - NOW useAuth is defined!
 function RoleBasedRedirect() {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/" replace />;
+
+  console.log("🔄 RoleBasedRedirect - User:", user);
+
+  if (!user) {
+    console.log("🚫 No user, redirecting to /");
+    return <Navigate to="/" replace />;
+  }
+
+  if (!user.role) {
+    console.log("🚫 No role, redirecting to /");
+    return <Navigate to="/" replace />;
+  }
+
+  console.log(`✅ Redirecting to /${user.role}`);
+
   switch (user.role) {
     case "student":
       return <Navigate to="/student" replace />;

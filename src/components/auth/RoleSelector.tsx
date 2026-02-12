@@ -11,6 +11,7 @@ import { GraduationCap, Building, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 interface RoleSelectorProps {
   open: boolean;
@@ -26,58 +27,47 @@ export function RoleSelector({
   const [selectedRole, setSelectedRole] = useState<
     "student" | "institution" | "verifier" | null
   >(null);
-  const { updateUser } = useAuth();
-  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const { updateUserRole } = useAuth();
   const { toast } = useToast();
 
   const handleSelectRole = async () => {
     if (!selectedRole) return;
 
     try {
-      // Update user with selected role
-      updateUser({ role: selectedRole });
+      setIsLoading(true);
+      console.log("🎭 Selecting role:", selectedRole);
 
-      // DIRECT localStorage update to ensure it's set
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        user.role = selectedRole;
-        localStorage.setItem("user", JSON.stringify(user));
-
-        // Log to verify
-        console.log("✅ Role updated in localStorage:", user);
-      }
+      // Call API to update role in MongoDB
+      const result = await updateUserRole(selectedRole);
+      console.log("🎭 Role update result:", result);
 
       toast({
-        title: "Role Selected",
+        title: "✅ Role Selected",
         description: `You are now logged in as a ${selectedRole}`,
       });
 
       // Close dialog
       onOpenChange(false);
 
-      // Small delay to ensure state updates
+      // 🔧 CRITICAL FIX: Force a complete page reload to the role-specific URL
+      // This ensures everything re-initializes with the new role
       setTimeout(() => {
-        // Redirect based on role
-        switch (selectedRole) {
-          case "student":
-            navigate("/student", { replace: true });
-            break;
-          case "institution":
-            navigate("/institution", { replace: true });
-            break;
-          case "verifier":
-            navigate("/verifier", { replace: true });
-            break;
-        }
-      }, 100);
-    } catch (error) {
-      console.error("Failed to set role:", error);
+        console.log("🔄 Forcing hard reload to:", `/${selectedRole}`);
+        window.location.href = `/${selectedRole}`;
+      }, 500);
+    } catch (error: any) {
+      console.error("❌ Failed to set role:", error);
       toast({
-        title: "Error",
-        description: "Failed to set role",
+        title: "❌ Error",
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to set role",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -95,6 +85,7 @@ export function RoleSelector({
             variant={selectedRole === "student" ? "default" : "outline"}
             className="w-full justify-start gap-4 h-auto py-4"
             onClick={() => setSelectedRole("student")}
+            disabled={isLoading}
           >
             <GraduationCap className="h-5 w-5" />
             <div className="text-left">
@@ -108,6 +99,7 @@ export function RoleSelector({
             variant={selectedRole === "institution" ? "default" : "outline"}
             className="w-full justify-start gap-4 h-auto py-4"
             onClick={() => setSelectedRole("institution")}
+            disabled={isLoading}
           >
             <Building className="h-5 w-5" />
             <div className="text-left">
@@ -121,6 +113,7 @@ export function RoleSelector({
             variant={selectedRole === "verifier" ? "default" : "outline"}
             className="w-full justify-start gap-4 h-auto py-4"
             onClick={() => setSelectedRole("verifier")}
+            disabled={isLoading}
           >
             <Shield className="h-5 w-5" />
             <div className="text-left">
@@ -132,11 +125,25 @@ export function RoleSelector({
           </Button>
         </div>
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isLoading}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSelectRole} disabled={!selectedRole}>
-            Continue
+          <Button
+            onClick={handleSelectRole}
+            disabled={!selectedRole || isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Continue"
+            )}
           </Button>
         </div>
       </DialogContent>

@@ -328,52 +328,93 @@ export const credentialAPI = {
 };
 
 export const authAPI = {
-  // Wallet login (Web3)
-  walletLogin: async (walletAddress: string, signature: string) => {
-    const response = await api.post("/auth/wallet-login", {
-      walletAddress,
-      signature,
-      message: `Login to AcademiChain at ${Date.now()}`,
-    });
-
-    localStorage.setItem("token", response.data.token);
-    localStorage.setItem("user", JSON.stringify(response.data.user));
-
-    return response.data;
-  },
-
-  // Email/password login
-  login: async (data: { email: string; password: string }) => {
-    const response = await api.post("/auth/login", data);
-
-    localStorage.setItem("token", response.data.token);
-    localStorage.setItem("user", JSON.stringify(response.data.user));
-
-    return response.data;
-  },
-
-  // Register
-  register: async (data: {
-    name: string;
-    email: string;
-    password: string;
-    role: string;
+  // ✅ Wallet login with signature verification
+  // ✅ Wallet login with signature verification
+  walletLogin: async (data: {
+    walletAddress: string;
+    signature: string;
+    message: string;
   }) => {
-    const response = await api.post("/auth/register", data);
-    return response.data;
+    try {
+      console.log("📤 Sending wallet login request:", {
+        walletAddress: data.walletAddress,
+        messageLength: data.message.length,
+        signatureLength: data.signature.length,
+      });
+
+      const response = await api.post("/auth/wallet-login", data);
+
+      console.log("📦 Wallet login RAW response:", response);
+      console.log("📦 Wallet login response DATA:", response.data);
+      console.log("📦 Response status:", response.status);
+      console.log("📦 Response headers:", response.headers);
+
+      // Check if response has the expected format
+      if (response.data && response.data.success && response.data.token) {
+        console.log("✅ Login successful, storing token and user");
+
+        // Store in localStorage
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+
+        // Verify they were stored
+        console.log(
+          "📦 Stored token:",
+          localStorage.getItem("token")?.substring(0, 20) + "...",
+        );
+        console.log("📦 Stored user:", localStorage.getItem("user"));
+      } else {
+        console.error("❌ Invalid response format:", response.data);
+      }
+
+      return response.data;
+    } catch (error: any) {
+      console.error("❌ Wallet login error:", error);
+      console.error("❌ Error response:", error.response?.data);
+      console.error("❌ Error status:", error.response?.status);
+      throw error;
+    }
+  },
+  // ✅ Update user role (after role selection)
+  // ✅ Update user role (after role selection)
+  // ✅ Update user role (after role selection)
+  updateRole: async (data: { role: string; institution?: string }) => {
+    try {
+      console.log("📤 API - Sending update role request:", data);
+      const response = await api.put("/auth/role", data);
+      console.log("📦 API - Update role raw response:", response);
+      console.log("📦 API - Response data:", response.data);
+
+      if (response?.data?.success && response?.data?.token) {
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+        console.log("✅ API - Token and user stored in localStorage");
+      } else {
+        console.warn("⚠️ API - Response missing token or user:", response.data);
+      }
+
+      return response.data;
+    } catch (error: any) {
+      console.error("❌ API - Update role error:", error);
+      console.error("❌ API - Error response:", error.response?.data);
+      throw error;
+    }
   },
 
-  // Get logged-in user profile
+  // ✅ Get current user profile
   getProfile: async () => {
     const response = await api.get("/auth/me");
     return response.data;
   },
 
-  // Logout
+  // ✅ Logout
   logout: async () => {
-    await api.post("/auth/logout");
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    try {
+      await api.post("/auth/logout");
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    }
     return { success: true };
   },
 };
