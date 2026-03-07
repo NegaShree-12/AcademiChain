@@ -4,23 +4,27 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { RoleLayout } from "@/layouts/RoleLayout";
-import { useAuth } from "@/contexts/AuthContext"; // ← THIS WAS MISSING!
+import { useAuth } from "@/contexts/AuthContext";
 
 // Public Pages
 import { Landing } from "./pages/Landing";
-import { Verify } from "./pages/Verify";
+import Verify from "./pages/Verify";
 import NotFound from "./pages/NotFound";
 
 // Student Pages
-import { StudentDashboard } from "./pages/Dashboard";
-import { CredentialDetailPage } from "./pages/student/CredentialDetailPage";
+import StudentDashboard from "./pages/student/dashboard";
+import CredentialDetailPage from "./pages/student/CredentialDetailPage";
+import CredentialsPage from "./pages/student/CredentialsPage";
 import { SettingsPage } from "./pages/student/SettingsPage";
-import { SharedLinksPage } from "./pages/student/SharedLinksPage";
+import SharedLinksPage from "./pages/student/SharedLinksPage";
 import { VerificationHistoryPage } from "./pages/student/VerificationHistoryPage";
 
 // Institution Pages
 import { InstitutionDashboard } from "./pages/InstitutionDashboard";
 import { UploadCredential } from "./pages/institution/UploadCredential";
+import { StudentsPage } from "./pages/institution/StudentPage";
+import { IssuedCredentialsPage } from "./pages/institution/IssuedCredentialsPage";
+import { InstitutionSettingsPage } from "./pages/institution/SettingsPage";
 
 // Verifier Pages
 import { VerifierDashboard } from "./pages/verifier/VerifierDashboard";
@@ -45,13 +49,23 @@ function App() {
             <Route path="/verify" element={<Verify />} />
             <Route path="/verify/:hash" element={<Verify />} />
 
-            {/* Student Routes */}
+            {/* ================= STUDENT ROUTES ================= */}
             <Route
               path="/student"
               element={
                 <RoleGuard allowedRoles={["student"]}>
                   <RoleLayout>
                     <StudentDashboard />
+                  </RoleLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/student/credentials"
+              element={
+                <RoleGuard allowedRoles={["student"]}>
+                  <RoleLayout>
+                    <CredentialsPage />
                   </RoleLayout>
                 </RoleGuard>
               }
@@ -96,14 +110,37 @@ function App() {
                 </RoleGuard>
               }
             />
+            <Route
+              path="/student/activity"
+              element={
+                <RoleGuard allowedRoles={["student"]}>
+                  <RoleLayout>
+                    <div className="container py-8">
+                      <h1 className="text-2xl font-bold">Activity History</h1>
+                      <p className="text-muted-foreground">Coming soon...</p>
+                    </div>
+                  </RoleLayout>
+                </RoleGuard>
+              }
+            />
 
-            {/* Institution Routes */}
+            {/* ================= INSTITUTION ROUTES ================= */}
             <Route
               path="/institution"
               element={
                 <RoleGuard allowedRoles={["institution"]}>
                   <RoleLayout>
                     <InstitutionDashboard />
+                  </RoleLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/institution/students"
+              element={
+                <RoleGuard allowedRoles={["institution"]}>
+                  <RoleLayout>
+                    <StudentsPage />
                   </RoleLayout>
                 </RoleGuard>
               }
@@ -118,8 +155,28 @@ function App() {
                 </RoleGuard>
               }
             />
+            <Route
+              path="/institution/credentials"
+              element={
+                <RoleGuard allowedRoles={["institution"]}>
+                  <RoleLayout>
+                    <IssuedCredentialsPage />
+                  </RoleLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/institution/settings"
+              element={
+                <RoleGuard allowedRoles={["institution"]}>
+                  <RoleLayout>
+                    <InstitutionSettingsPage />
+                  </RoleLayout>
+                </RoleGuard>
+              }
+            />
 
-            {/* Verifier Routes */}
+            {/* ================= VERIFIER ROUTES ================= */}
             <Route
               path="/verifier"
               element={
@@ -133,7 +190,7 @@ function App() {
               }
             />
 
-            {/* Admin Routes */}
+            {/* ================= ADMIN ROUTES ================= */}
             <Route
               path="/admin"
               element={
@@ -157,7 +214,7 @@ function App() {
   );
 }
 
-// Helper component for redirect - NOW useAuth is defined!
+// Helper component for redirect
 function RoleBasedRedirect() {
   const { user } = useAuth();
 

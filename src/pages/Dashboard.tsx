@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import QRCode from "react-qr-code";
 import { useToast } from "@/hooks/use-toast";
-import { credentialAPI } from "@/lib/api";
+import { studentAPI } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -741,7 +741,6 @@ export function StudentDashboard() {
                   </>
                 )}
               </Button>
-
 
               <Button
                 variant="outline"

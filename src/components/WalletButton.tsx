@@ -75,31 +75,41 @@ export function WalletButton() {
 
         console.log("🟢 authAPI.walletLogin RESPONSE:", response);
 
-        const storedToken = localStorage.getItem("token");
-        const storedUser = localStorage.getItem("user");
+        // 🔥 FIX: Store token and user from response.data
+        if (
+          response.data.success &&
+          response.data.token &&
+          response.data.user
+        ) {
+          localStorage.setItem("token", response.data.token);
+          localStorage.setItem("user", JSON.stringify(response.data.user));
 
-        console.log("📦 localStorage token exists:", !!storedToken);
-        console.log("📦 localStorage user exists:", !!storedUser);
-
-        if (storedUser) {
-          const parsed = JSON.parse(storedUser);
-          console.log("👤 User role:", parsed.role);
+          console.log("📦 localStorage token set:", !!response.data.token);
+          console.log("📦 localStorage user set:", response.data.user);
 
           toast({
             title: "✅ Connected Successfully",
             description: `Wallet ${truncateAddress(result.address)} connected`,
           });
 
-          if (!parsed.role) {
+          // Check if user needs to select role
+          if (!response.data.user.role) {
             console.log("🎭 OPENING ROLE SELECTOR!");
             setRoleSelectorOpen(true);
           } else {
-            console.log("✅ User has role, redirecting to:", parsed.role);
-            window.location.href = `/${parsed.role}`;
+            console.log(
+              "✅ User has role, redirecting to:",
+              response.data.user.role,
+            );
+            window.location.href = `/${response.data.user.role}`;
           }
         } else {
-          console.error("❌ No user found in localStorage after login!");
-          setRoleSelectorOpen(true);
+          console.error("❌ Invalid response format:", response.data);
+          toast({
+            title: "❌ Login Failed",
+            description: "Invalid response from server",
+            variant: "destructive",
+          });
         }
       }
     } catch (error: any) {
@@ -113,7 +123,6 @@ export function WalletButton() {
       setIsLoggingIn(false);
     }
   };
-
   const handleDisconnect = async () => {
     try {
       disconnect();

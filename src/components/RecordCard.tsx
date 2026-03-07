@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  File,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,11 +23,13 @@ interface RecordCardProps {
   onShare?: () => void;
 }
 
+// Add default/fallback values
 const typeIcons = {
   degree: GraduationCap,
   certificate: Award,
   transcript: FileText,
   diploma: ScrollText,
+  default: File, // Default icon for unknown types
 };
 
 const typeColors = {
@@ -34,6 +37,7 @@ const typeColors = {
   certificate: "bg-amber-500/10 text-amber-600",
   transcript: "bg-emerald-500/10 text-emerald-600",
   diploma: "bg-purple-500/10 text-purple-600",
+  default: "bg-muted text-muted-foreground", // Default color for unknown types
 };
 
 const statusConfig = {
@@ -52,23 +56,45 @@ const statusConfig = {
     label: "Revoked",
     className: "bg-destructive/10 text-destructive border-destructive/20",
   },
+  default: {
+    // Default status for unknown values
+    icon: AlertCircle,
+    label: "Unknown",
+    className: "bg-muted text-muted-foreground border-border",
+  },
 };
 
 export function RecordCard({ credential, onView, onShare }: RecordCardProps) {
-  const Icon = typeIcons[credential.type];
-  const status = statusConfig[credential.status];
+  // Safe access with fallbacks
+  const credentialType = credential?.type || "default";
+  const credentialStatus = credential?.status || "default";
+
+  const Icon = typeIcons[credentialType] || typeIcons.default;
+  const status = statusConfig[credentialStatus] || statusConfig.default;
   const StatusIcon = status.icon;
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  const formatDate = (date?: string) => {
+    if (!date) return "Unknown date";
+    try {
+      return new Date(date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "Invalid date";
+    }
   };
 
-  const truncateHash = (hash: string) => {
+  const truncateHash = (hash?: string) => {
+    if (!hash || hash === "0x0" || hash.length < 10)
+      return "No transaction hash";
     return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
+  };
+
+  const formatBlockNumber = (blockNumber?: number) => {
+    if (!blockNumber) return "#0";
+    return `#${blockNumber.toLocaleString()}`;
   };
 
   return (
@@ -77,7 +103,12 @@ export function RecordCard({ credential, onView, onShare }: RecordCardProps) {
         {/* Header with type icon */}
         <div className="relative p-6 pb-4">
           <div className="flex items-start justify-between">
-            <div className={cn("rounded-xl p-3", typeColors[credential.type])}>
+            <div
+              className={cn(
+                "rounded-xl p-3",
+                typeColors[credentialType] || typeColors.default,
+              )}
+            >
               <Icon className="h-6 w-6" />
             </div>
             <Badge variant="outline" className={cn("gap-1", status.className)}>
@@ -89,14 +120,16 @@ export function RecordCard({ credential, onView, onShare }: RecordCardProps) {
           {/* Title and institution */}
           <div className="mt-4 space-y-1">
             <h3 className="font-semibold text-lg leading-tight line-clamp-2">
-              {credential.title}
+              {credential?.title || "Untitled Credential"}
             </h3>
-            <p className="text-sm text-muted-foreground">{credential.institution}</p>
+            <p className="text-sm text-muted-foreground">
+              {credential?.institution || "Unknown Institution"}
+            </p>
           </div>
 
           {/* Issue date */}
           <p className="mt-2 text-xs text-muted-foreground">
-            Issued on {formatDate(credential.issueDate)}
+            Issued on {formatDate(credential?.issueDate)}
           </p>
         </div>
 
@@ -106,13 +139,13 @@ export function RecordCard({ credential, onView, onShare }: RecordCardProps) {
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Transaction Hash</p>
               <p className="font-mono text-xs text-hash">
-                {truncateHash(credential.txHash)}
+                {truncateHash(credential?.txHash)}
               </p>
             </div>
             <div className="text-right space-y-1">
               <p className="text-xs text-muted-foreground">Block</p>
               <p className="font-mono text-xs text-hash">
-                #{credential.blockNumber.toLocaleString()}
+                {formatBlockNumber(credential?.blockNumber)}
               </p>
             </div>
           </div>

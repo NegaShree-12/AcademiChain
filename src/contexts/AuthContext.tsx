@@ -108,9 +108,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const response = await authAPI.updateRole({ role, institution });
       console.log("📦 Update role FULL response:", response);
+      console.log("📦 Response data:", response.data); // ← Add this log
 
-      if (response?.success && response?.token && response?.user) {
-        const { token, user } = response;
+      // ✅ FIX: Check response.data instead of response
+      if (
+        response?.data?.success &&
+        response?.data?.token &&
+        response?.data?.user
+      ) {
+        const { token, user } = response.data;
 
         // 🔥 IMPORTANT: Clear ALL existing state first
         localStorage.clear(); // This removes ALL old data
@@ -127,13 +133,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Don't redirect here - let the RoleSelector handle the redirect
         return user;
       } else {
+        console.error("❌ Invalid response format:", response.data);
         throw new Error("Invalid response format from server");
       }
     } catch (error: any) {
       console.error("❌ Update role error:", error);
       toast({
         title: "❌ Failed to Update Role",
-        description: error?.message || "Please try again",
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Please try again",
         variant: "destructive",
       });
       throw error;

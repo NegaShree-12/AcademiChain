@@ -29,14 +29,14 @@ export function VerificationBadge({
       className={cn(
         "relative flex items-center justify-center",
         sizeClasses[size],
-        className
+        className,
       )}
     >
       {/* Outer ring with pulse animation */}
       <div
         className={cn(
           "absolute inset-0 rounded-full bg-success/20",
-          showAnimation && "animate-ping"
+          showAnimation && "animate-ping",
         )}
         style={{ animationDuration: "2s" }}
       />
@@ -49,7 +49,7 @@ export function VerificationBadge({
         className={cn(
           "relative text-success-foreground z-10",
           iconSizes[size],
-          showAnimation && "verify-check"
+          showAnimation && "verify-check",
         )}
       />
     </div>
@@ -61,19 +61,24 @@ interface BlockchainBadgeProps {
   className?: string;
 }
 
-export function BlockchainBadge({ confirmations, className }: BlockchainBadgeProps) {
+export function BlockchainBadge({
+  confirmations,
+  className,
+}: BlockchainBadgeProps) {
   return (
     <div
       className={cn(
         "flex items-center gap-3 rounded-xl bg-blockchain-light px-4 py-3",
-        className
+        className,
       )}
     >
       <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blockchain text-primary-foreground">
         <Link2 className="h-5 w-5" />
       </div>
       <div>
-        <p className="text-sm font-medium text-foreground">Blockchain Verified</p>
+        <p className="text-sm font-medium text-foreground">
+          Blockchain Verified
+        </p>
         <p className="text-xs text-muted-foreground">
           {confirmations.toLocaleString()} block confirmations
         </p>
@@ -88,18 +93,24 @@ interface TrustBadgeProps {
   className?: string;
 }
 
-export function TrustBadge({ institution, verified = true, className }: TrustBadgeProps) {
+export function TrustBadge({
+  institution,
+  verified = true,
+  className,
+}: TrustBadgeProps) {
   return (
     <div
       className={cn(
         "flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3",
-        className
+        className,
       )}
     >
       <div
         className={cn(
           "flex items-center justify-center h-10 w-10 rounded-lg",
-          verified ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+          verified
+            ? "bg-success/10 text-success"
+            : "bg-muted text-muted-foreground",
         )}
       >
         <Shield className="h-5 w-5" />

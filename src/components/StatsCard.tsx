@@ -56,7 +56,7 @@ export function StatsCard({
                 "text-xs font-medium px-2 py-1 rounded-full",
                 trend.isPositive
                   ? "bg-success/10 text-success"
-                  : "bg-destructive/10 text-destructive"
+                  : "bg-destructive/10 text-destructive",
               )}
             >
               {trend.isPositive ? "+" : "-"}

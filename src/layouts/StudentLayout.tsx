@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   GraduationCap,
   Share2,
-  History,
   Settings,
   Shield,
 } from "lucide-react";
@@ -20,11 +19,6 @@ const studentNavItems = [
     label: "My Credentials",
   },
   { href: "/student/shared", icon: Share2, label: "Shared Links" },
-  {
-    href: "/student/verifications",
-    icon: History,
-    label: "Verification History",
-  }, // ← ADD THIS
   { href: "/student/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -54,7 +48,10 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
         <nav className="p-4">
           <div className="space-y-1">
             {studentNavItems.map((item) => {
-              const isActive = location.pathname.startsWith(item.href);
+              const isActive =
+                location.pathname === item.href ||
+                (item.href !== "/student" &&
+                  location.pathname.startsWith(item.href));
               const Icon = item.icon;
               return (
                 <Link key={item.href} to={item.href}>

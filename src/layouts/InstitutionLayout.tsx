@@ -1,13 +1,12 @@
-// frontend/src/layouts/InstitutionLayout.tsx
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
-  GraduationCap,
+  LayoutDashboard,
   Users,
-  FileText,
-  BarChart3,
-  Settings,
   Upload,
+  FileText,
+  Settings,
   Shield,
   Building,
 } from "lucide-react";
@@ -15,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const institutionNavItems = [
-  { href: "/institution/dashboard", icon: BarChart3, label: "Dashboard" },
+  { href: "/institution", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/institution/students", icon: Users, label: "Students" },
   { href: "/institution/upload", icon: Upload, label: "Upload Credentials" },
   {
@@ -23,15 +22,16 @@ const institutionNavItems = [
     icon: FileText,
     label: "Issued Credentials",
   },
-  { href: "/institution/analytics", icon: BarChart3, label: "Analytics" },
   { href: "/institution/settings", icon: Settings, label: "Settings" },
 ];
 
 export function InstitutionLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Sidebar */}
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border/50 bg-card">
         <div className="flex h-16 items-center border-b border-border/50 px-6">
           <div className="flex items-center gap-3">
@@ -39,17 +39,22 @@ export function InstitutionLayout({ children }: { children: React.ReactNode }) {
               <Building className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="font-semibold">MIT Admin</p>
+              <p className="font-semibold">{user?.name || "Institution"}</p>
               <p className="text-xs text-muted-foreground">
-                Institution Portal
+                {user?.walletAddress?.slice(0, 6)}...
+                {user?.walletAddress?.slice(-4)}
               </p>
             </div>
           </div>
         </div>
+
         <nav className="p-4">
           <div className="space-y-1">
             {institutionNavItems.map((item) => {
-              const isActive = location.pathname.startsWith(item.href);
+              const isActive =
+                location.pathname === item.href ||
+                (item.href !== "/institution" &&
+                  location.pathname.startsWith(item.href));
               const Icon = item.icon;
               return (
                 <Link key={item.href} to={item.href}>
@@ -67,6 +72,8 @@ export function InstitutionLayout({ children }: { children: React.ReactNode }) {
               );
             })}
           </div>
+
+          {/* Blockchain Status Widget */}
           <div className="mt-8 p-4 rounded-lg bg-muted/50 border">
             <div className="flex items-center gap-2 mb-2">
               <Shield className="h-4 w-4 text-success" />
@@ -78,14 +85,18 @@ export function InstitutionLayout({ children }: { children: React.ReactNode }) {
                 <span className="font-medium">Sepolia</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Issuer Wallet</span>
-                <code className="font-mono">0x742d...b045</code>
+                <span className="text-muted-foreground">Contract</span>
+                <code className="font-mono text-xs">
+                  {process.env.VITE_CONTRACT_ADDRESS?.slice(0, 10)}...
+                </code>
               </div>
             </div>
           </div>
         </nav>
       </aside>
-      <main className="ml-64">{children}</main>
+
+      {/* Main Content */}
+      <main className="ml-64 min-h-screen bg-background">{children}</main>
     </div>
   );
 }

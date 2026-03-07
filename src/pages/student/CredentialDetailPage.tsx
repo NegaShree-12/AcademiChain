@@ -1,310 +1,602 @@
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Header } from "@/components/Header";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { studentAPI } from "../../lib/api";
 import {
-  Award,
+  ArrowLeft,
+  Download,
+  Share2,
+  QrCode,
+  Shield,
+  Globe,
   Calendar,
+  Building2,
+  User,
+  Hash,
+  CheckCircle,
+  XCircle,
   Copy,
   ExternalLink,
-  Share2,
-  Download,
-  CheckCircle2,
   Clock,
-  AlertCircle,
-  FileText,
-  Hash,
-  Building,
-  Shield,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { mockCredentials } from "@/data/mockData";
-import { format } from "date-fns";
+import { useToast } from "../../hooks/use-toast";
 
-export function CredentialDetailPage() {
-  const { id } = useParams();
+interface ShareModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  credentialId: string;
+  onShare: (data: any) => Promise<void>;
+}
+
+const ShareModal: React.FC<ShareModalProps> = ({
+  isOpen,
+  onClose,
+  credentialId,
+  onShare,
+}) => {
+  const [shareType, setShareType] = useState("public");
+  const [expiresInDays, setExpiresInDays] = useState("7");
+  const [maxAccess, setMaxAccess] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+
+  const handleShare = async () => {
+    try {
+      setLoading(true);
+      const response = await studentAPI.generateShareLink(credentialId, {
+        shareType,
+        expiresInDays: parseInt(expiresInDays),
+        maxAccess: maxAccess ? parseInt(maxAccess) : undefined,
+      });
+
+      setQrCode(response.data.data.qrCode);
+      setShareUrl(response.data.data.shareUrl);
+
+      toast({
+        title: "Success",
+        description: "Share link generated successfully",
+      });
+    } catch (error) {
+      console.error("Error generating share link:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate share link",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: "Link copied to clipboard",
+      });
+    } catch (error) {
+      console.error("Error copying to clipboard:", error);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div
+          className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+          onClick={onClose}
+        ></div>
+
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div className="sm:flex sm:items-start">
+              <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                  Share Credential
+                </h3>
+
+                {!qrCode ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Share Type
+                      </label>
+                      <select
+                        value={shareType}
+                        onChange={(e) => setShareType(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="public">
+                          Public - Anyone with link
+                        </option>
+                        <option value="private">
+                          Private - Only specified emails
+                        </option>
+                        <option value="one-time">One-time access</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Expires In (Days)
+                      </label>
+                      <input
+                        type="number"
+                        value={expiresInDays}
+                        onChange={(e) => setExpiresInDays(e.target.value)}
+                        min="1"
+                        max="30"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Max Accesses (Optional)
+                      </label>
+                      <input
+                        type="number"
+                        value={maxAccess}
+                        onChange={(e) => setMaxAccess(e.target.value)}
+                        min="1"
+                        placeholder="Unlimited"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleShare}
+                      disabled={loading}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? "Generating..." : "Generate Share Link"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex justify-center">
+                      <img src={qrCode} alt="QR Code" className="w-48 h-48" />
+                    </div>
+
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 truncate mb-2">
+                        {shareUrl}
+                      </p>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => copyToClipboard(shareUrl!)}
+                          className="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm flex items-center justify-center"
+                        >
+                          <Copy className="h-4 w-4 mr-1" />
+                          Copy Link
+                        </button>
+                        <button
+                          onClick={() => window.open(shareUrl!, "_blank")}
+                          className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center justify-center"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-1" />
+                          Open
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setQrCode(null);
+                        setShareUrl(null);
+                        onClose();
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CredentialDetailPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [credential, setCredential] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [shareLinks, setShareLinks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
-    // Find credential from mock data
-    const found = mockCredentials.find((c) => c.id === id || c.txHash === id);
-    if (found) {
-      setCredential(found);
-    }
-    setIsLoading(false);
+    fetchCredentialDetails();
   }, [id]);
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied!",
-      description: `${label} copied to clipboard`,
+  const fetchCredentialDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await studentAPI.getCredentialById(id!);
+      setCredential(response.data.data);
+      setShareLinks(response.data.shareLinks || []);
+    } catch (error) {
+      console.error("Error fetching credential:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load credential details",
+        variant: "destructive",
+      });
+      navigate("/student/credentials");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRevokeShare = async (shareId: string) => {
+    try {
+      await studentAPI.revokeShareLink(shareId);
+      toast({
+        title: "Success",
+        description: "Share link revoked successfully",
+      });
+      fetchCredentialDetails();
+    } catch (error) {
+      console.error("Error revoking share link:", error);
+      toast({
+        title: "Error",
+        description: "Failed to revoke share link",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownload = () => {
+    // Create downloadable JSON file
+    const data = {
+      credential: {
+        id: credential.credentialId,
+        title: credential.title,
+        studentName: credential.studentName,
+        institutionName: credential.institutionName,
+        issueDate: credential.issueDate,
+        credentialType: credential.credentialType,
+        blockchainTxHash: credential.blockchainTxHash,
+        ipfsHash: credential.ipfsHash,
+      },
+      verification: {
+        verified: credential.blockchainStatus === "verified",
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
     });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `credential-${credential.credentialId}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case "verified":
-        return {
-          icon: CheckCircle2,
-          label: "Verified",
-          className: "bg-success/10 text-success border-success/20",
-        };
-      case "pending":
-        return {
-          icon: Clock,
-          label: "Pending",
-          className: "bg-pending/10 text-pending border-pending/20",
-        };
-      case "revoked":
-        return {
-          icon: AlertCircle,
-          label: "Revoked",
-          className: "bg-destructive/10 text-destructive border-destructive/20",
-        };
-      default:
-        return {
-          icon: AlertCircle,
-          label: status,
-          className: "bg-muted text-muted-foreground",
-        };
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "degree":
-        return Award;
-      case "certificate":
-        return Award;
-      case "transcript":
-        return FileText;
-      case "diploma":
-        return Award;
-      default:
-        return FileText;
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="container py-8 flex justify-center">
-          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   if (!credential) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="container py-16 text-center">
-          <Shield className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Credential Not Found</h1>
-          <p className="text-muted-foreground mb-6">
-            The credential you're looking for doesn't exist or has been removed.
-          </p>
-          <Button onClick={() => navigate("/student")}>
-            Back to Dashboard
-          </Button>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <XCircle className="h-16 w-16 text-red-500 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Credential Not Found
+        </h2>
+        <p className="text-gray-600 mb-4">
+          The credential you're looking for doesn't exist.
+        </p>
+        <button
+          onClick={() => navigate("/student/credentials")}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Go Back
+        </button>
       </div>
     );
   }
 
-  const StatusIcon = getStatusConfig(credential.status).icon;
-  const TypeIcon = getTypeIcon(credential.type);
-
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container py-8 max-w-4xl">
-        {/* Back button */}
-        <Button
-          variant="ghost"
-          className="mb-6"
-          onClick={() => navigate("/student")}
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Navigation */}
+        <button
+          onClick={() => navigate("/student/credentials")}
+          className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
         >
-          ← Back to Dashboard
-        </Button>
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to Credentials
+        </button>
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8">
-          <div className="flex items-start gap-4">
-            <div
-              className={`h-16 w-16 rounded-xl flex items-center justify-center ${
-                credential.type === "degree"
-                  ? "bg-primary/10 text-primary"
-                  : credential.type === "certificate"
-                    ? "bg-amber-500/10 text-amber-600"
-                    : credential.type === "transcript"
-                      ? "bg-emerald-500/10 text-emerald-600"
-                      : "bg-purple-500/10 text-purple-600"
-              }`}
-            >
-              <TypeIcon className="h-8 w-8" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">{credential.title}</h1>
-              <p className="text-xl text-muted-foreground mt-1">
-                {credential.institution}
-              </p>
-              <div className="flex items-center gap-3 mt-3">
-                <Badge
-                  variant="outline"
-                  className={getStatusConfig(credential.status).className}
-                >
-                  <StatusIcon className="h-3 w-3 mr-1" />
-                  {getStatusConfig(credential.status).label}
-                </Badge>
-                <Badge variant="outline" className="capitalize">
-                  {credential.type}
-                </Badge>
-              </div>
-            </div>
+        {/* Credential Status Banner */}
+        {credential.blockchainStatus === "verified" ? (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-center">
+            <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+            <span className="text-green-800 font-medium">
+              Verified on Blockchain
+            </span>
+            <span className="text-green-600 text-sm ml-2">
+              Transaction confirmed
+            </span>
           </div>
-          <div className="flex gap-2">
-            <Button className="gap-2">
-              <Share2 className="h-4 w-4" />
-              Share
-            </Button>
-            <Button variant="outline" className="gap-2">
-              <Download className="h-4 w-4" />
-              Download
-            </Button>
+        ) : (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-center">
+            <Clock className="h-5 w-5 text-yellow-500 mr-2" />
+            <span className="text-yellow-800 font-medium">
+              Pending Verification
+            </span>
+            <span className="text-yellow-600 text-sm ml-2">
+              Awaiting blockchain confirmation
+            </span>
           </div>
-        </div>
+        )}
 
-        {/* Main content grid */}
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Left column - Details */}
-          <div className="md:col-span-2 space-y-6">
-            {/* Description */}
-            <div className="rounded-lg border p-6">
-              <h2 className="font-semibold mb-3">Description</h2>
-              <p className="text-muted-foreground">
-                {credential.description || "No description provided."}
-              </p>
-            </div>
-
-            {/* Metadata */}
-            <div className="rounded-lg border p-6">
-              <h2 className="font-semibold mb-4">Credential Details</h2>
-              <div className="space-y-3">
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Issue Date</span>
-                  <span className="font-medium">
-                    {format(new Date(credential.issueDate), "MMMM d, yyyy")}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-muted-foreground">Credential ID</span>
-                  <span className="font-mono text-sm">{credential.id}</span>
-                </div>
-                {credential.metadata?.grade && (
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-muted-foreground">Grade</span>
-                    <span className="font-medium">
-                      {credential.metadata.grade}
-                    </span>
-                  </div>
-                )}
-                {credential.metadata?.gpa && (
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-muted-foreground">GPA</span>
-                    <span className="font-medium">
-                      {credential.metadata.gpa}
-                    </span>
-                  </div>
-                )}
-                {credential.metadata?.credits && (
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-muted-foreground">Credits</span>
-                    <span className="font-medium">
-                      {credential.metadata.credits}
-                    </span>
-                  </div>
-                )}
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Credential Details */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {credential.title}
+                </h1>
+                <p className="text-gray-600 mt-1">{credential.description}</p>
               </div>
-            </div>
-          </div>
 
-          {/* Right column - Blockchain */}
-          <div className="space-y-6">
-            <div className="rounded-lg border p-6">
-              <h2 className="font-semibold mb-4 flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                Blockchain Proof
-              </h2>
-              <div className="space-y-4">
+              <div className="p-6 space-y-6">
+                {/* Student Info */}
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">
-                    Transaction Hash
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <code className="font-mono text-xs break-all bg-muted p-2 rounded flex-1">
-                      {credential.txHash}
-                    </code>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      onClick={() =>
-                        copyToClipboard(credential.txHash, "Transaction hash")
-                      }
-                    >
-                      <Copy className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">
-                    Block Number
-                  </p>
-                  <p className="font-mono text-sm">
-                    #{credential.blockNumber.toLocaleString()}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full gap-2"
-                  onClick={() =>
-                    window.open(
-                      `https://sepolia.etherscan.io/tx/${credential.txHash}`,
-                      "_blank",
-                    )
-                  }
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  View on Etherscan
-                </Button>
-              </div>
-            </div>
-
-            <div className="rounded-lg border p-6 bg-primary/5">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                <div>
-                  <h3 className="font-medium text-primary">
-                    Blockchain Verified
+                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+                    Student Information
                   </h3>
-                  <p className="text-sm text-primary/80 mt-1">
-                    This credential is permanently stored on the Ethereum
-                    blockchain and cannot be altered.
-                  </p>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <div className="flex items-start">
+                      <User className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
+                      <div>
+                        <p className="text-sm text-gray-500">Full Name</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {credential.studentName}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start">
+                      <Hash className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
+                      <div>
+                        <p className="text-sm text-gray-500">Student ID</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {credential.studentId}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Institution Info */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+                    Issuing Institution
+                  </h3>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <div className="flex items-start">
+                      <Building2 className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
+                      <div>
+                        <p className="text-sm text-gray-500">
+                          Institution Name
+                        </p>
+                        <p className="text-base font-medium text-gray-900">
+                          {credential.institutionName}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Credential Details */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+                    Credential Details
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-500">Issue Date</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {new Date(credential.issueDate).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          },
+                        )}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-500">Credential Type</p>
+                      <p className="text-base font-medium text-gray-900 capitalize">
+                        {credential.credentialType}
+                      </p>
+                    </div>
+                    {credential.metadata?.grade && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-500">Grade</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {credential.metadata.grade}
+                        </p>
+                      </div>
+                    )}
+                    {credential.metadata?.gpa && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-500">GPA</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {credential.metadata.gpa}
+                        </p>
+                      </div>
+                    )}
+                    {credential.metadata?.credits && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-500">Credits</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {credential.metadata.credits}
+                        </p>
+                      </div>
+                    )}
+                    {credential.metadata?.field && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-500">Field of Study</p>
+                        <p className="text-base font-medium text-gray-900">
+                          {credential.metadata.field}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Blockchain Proof */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+                    Blockchain Verification
+                  </h3>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <div className="flex items-start">
+                      <Shield className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-500">
+                          Transaction Hash
+                        </p>
+                        <div className="flex items-center mt-1">
+                          <code className="text-sm bg-gray-100 px-2 py-1 rounded flex-1 truncate">
+                            {credential.blockchainTxHash}
+                          </code>
+                          <button
+                            onClick={() =>
+                              navigator.clipboard.writeText(
+                                credential.blockchainTxHash,
+                              )
+                            }
+                            className="ml-2 p-1 text-gray-500 hover:text-gray-700"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-start">
+                      <Globe className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
+                      <div>
+                        <p className="text-sm text-gray-500">IPFS Hash</p>
+                        <div className="flex items-center mt-1">
+                          <code className="text-sm bg-gray-100 px-2 py-1 rounded">
+                            {credential.ipfsHash}
+                          </code>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Right Column - Actions & Share Links */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Actions */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <h3 className="font-semibold text-gray-900">Actions</h3>
+              </div>
+              <div className="p-6 space-y-3">
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share Credential
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download as JSON
+                </button>
+              </div>
+            </div>
+
+            {/* Active Share Links */}
+            {shareLinks.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <h3 className="font-semibold text-gray-900">
+                    Active Share Links
+                  </h3>
+                </div>
+                <div className="divide-y divide-gray-200">
+                  {shareLinks
+                    .filter(
+                      (s) => s.isActive && new Date(s.expiresAt) > new Date(),
+                    )
+                    .map((share) => (
+                      <div key={share.shareId} className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 flex items-center">
+                              <QrCode className="h-4 w-4 text-green-500 mr-1" />
+                              {share.shareType}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Expires:{" "}
+                              {new Date(share.expiresAt).toLocaleDateString()}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Views: {share.accessCount}{" "}
+                              {share.maxAccess && `/ ${share.maxAccess}`}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleRevokeShare(share.shareId)}
+                            className="text-xs px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                          >
+                            Revoke
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </main>
+      </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        credentialId={credential.credentialId}
+        onShare={async (data) => {
+          await fetchCredentialDetails();
+        }}
+      />
     </div>
   );
-}
+};
+
+export default CredentialDetailPage;
