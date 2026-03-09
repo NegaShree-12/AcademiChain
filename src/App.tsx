@@ -181,10 +181,54 @@ function App() {
               path="/verifier"
               element={
                 <RoleGuard
-                  allowedRoles={["employer", "university", "verifier"]}
+                  allowedRoles={["verifier", "employer", "university"]}
                 >
                   <RoleLayout>
                     <VerifierDashboard />
+                  </RoleLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/verifier/verify"
+              element={
+                <RoleGuard
+                  allowedRoles={["verifier", "employer", "university"]}
+                >
+                  <RoleLayout>
+                    <VerifierDashboard />
+                  </RoleLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/verifier/history"
+              element={
+                <RoleGuard
+                  allowedRoles={["verifier", "employer", "university"]}
+                >
+                  <RoleLayout>
+                    <div className="container py-8">
+                      <h1 className="text-2xl font-bold">
+                        Verification History
+                      </h1>
+                      <p className="text-muted-foreground">Coming soon...</p>
+                    </div>
+                  </RoleLayout>
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/verifier/settings"
+              element={
+                <RoleGuard
+                  allowedRoles={["verifier", "employer", "university"]}
+                >
+                  <RoleLayout>
+                    <div className="container py-8">
+                      <h1 className="text-2xl font-bold">Verifier Settings</h1>
+                      <p className="text-muted-foreground">Coming soon...</p>
+                    </div>
                   </RoleLayout>
                 </RoleGuard>
               }
@@ -238,6 +282,8 @@ function RoleBasedRedirect() {
     case "institution":
       return <Navigate to="/institution" replace />;
     case "verifier":
+    case "employer":
+    case "university":
       return <Navigate to="/verifier" replace />;
     case "admin":
       return <Navigate to="/admin" replace />;

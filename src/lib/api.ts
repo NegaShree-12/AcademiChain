@@ -1,3 +1,4 @@
+// frontend/src/lib/api.ts
 import axios from "axios";
 
 const API_BASE_URL =
@@ -72,6 +73,7 @@ export const studentAPI = {
   getShareLinks: () => api.get("/student/shares"),
   revokeShareLink: (shareId: string) =>
     api.put(`/student/shares/${shareId}/revoke`),
+  getVerificationHistory: () => api.get("/student/verifications"),
 };
 
 // ================= VERIFICATION API ENDPOINTS =================
@@ -82,19 +84,60 @@ export const verificationAPI = {
   getPreview: (credentialId: string) =>
     api.get(`/verify/preview/${credentialId}`),
   getBlockchainStatus: () => api.get("/verify/status"),
+  verifyByHash: (hash: string) => api.get(`/verify/hash/${hash}`),
+  verifyDocument: (formData: FormData) =>
+    api.post("/verify/document", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
 };
 
 // ================= CREDENTIAL API ENDPOINTS (ALIAS FOR STUDENTAPI) =================
-// This fixes your import error
 export const credentialAPI = studentAPI;
 
 // ================= INSTITUTION API ENDPOINTS =================
 export const institutionAPI = {
+  // Dashboard
   getDashboardStats: () => api.get("/institution/dashboard/stats"),
+
+  // Students Management
+  getStudents: () => api.get("/institution/students"),
+  getStudentById: (id: string) => api.get(`/institution/students/${id}`),
+  addStudent: (data: any) => api.post("/institution/students", data),
+  updateStudent: (id: string, data: any) =>
+    api.put(`/institution/students/${id}`, data),
+  deleteStudent: (id: string) => api.delete(`/institution/students/${id}`),
+
+  // Credentials Management
   getIssuedCredentials: () => api.get("/institution/credentials"),
+  getCredentialById: (id: string) => api.get(`/institution/credentials/${id}`),
   issueCredential: (data: any) => api.post("/institution/credentials", data),
-  revokeCredential: (id: string) =>
-    api.put(`/institution/credentials/${id}/revoke`),
+  revokeCredential: (id: string, reason?: string) =>
+    api.put(`/institution/credentials/${id}/revoke`, { reason }),
+
+  // Bulk Operations
+  bulkUploadCredentials: (formData: FormData) =>
+    api.post("/institution/credentials/bulk", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+
+  // Statistics and Reports
+  getStatistics: () => api.get("/institution/statistics"),
+  generateReport: (params: any) => api.get("/institution/reports", { params }),
+
+  // Verification
+  verifyCredential: (credentialId: string) =>
+    api.get(`/institution/verify/${credentialId}`),
+};
+
+// ================= ADMIN API ENDPOINTS =================
+export const adminAPI = {
+  getDashboardStats: () => api.get("/admin/dashboard/stats"),
+  getUsers: (params?: any) => api.get("/admin/users", { params }),
+  getUserById: (id: string) => api.get(`/admin/users/${id}`),
+  updateUser: (id: string, data: any) => api.put(`/admin/users/${id}`, data),
+  deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
+  getSystemHealth: () => api.get("/admin/system/health"),
+  getBlockchainStatus: () => api.get("/admin/blockchain/status"),
 };
 
 // ================= BLOCKCHAIN API ENDPOINTS =================
@@ -102,9 +145,20 @@ export const blockchainAPI = {
   issueCredential: (data: any) => api.post("/blockchain/issue", data),
   getCredentials: (address: string) =>
     api.get(`/blockchain/credentials/${address}`),
-  verifyCredential: (address: string, txHash: string) =>
-    api.get(`/blockchain/verify/${address}/${txHash}`),
+  verifyCredential: (txHash: string) => api.get(`/blockchain/verify/${txHash}`),
   getNetworkInfo: () => api.get("/blockchain/network"),
+  getTransactionReceipt: (txHash: string) =>
+    api.get(`/blockchain/tx/${txHash}`),
+  getBlockByNumber: (blockNumber: number) =>
+    api.get(`/blockchain/block/${blockNumber}`),
+  getBalance: (address: string) => api.get(`/blockchain/balance/${address}`),
+};
+
+// ================= SHARED API ENDPOINTS =================
+export const sharedAPI = {
+  getInstitutions: () => api.get("/shared/institutions"),
+  getCredentialTypes: () => api.get("/shared/credential-types"),
+  searchCredentials: (query: string) => api.get(`/shared/search?q=${query}`),
 };
 
 // ================= EXPORT DEFAULT =================

@@ -1,3 +1,4 @@
+// frontend/src/components/Header.tsx
 import { Link, useLocation } from "react-router-dom";
 import { WalletButton } from "./WalletButton";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,6 @@ export function Header() {
   ];
 
   const isActive = (path: string) => {
-    // Check if current path matches the dashboard destination
     if (path === dashboardUrl) {
       if (!user) return location.pathname === "/dashboard";
       return location.pathname === `/${user.role}`;
@@ -71,7 +71,19 @@ export function Header() {
 
         {/* Actions */}
         <div className="flex items-center gap-4">
-          <WalletButton />
+          {/* Only show wallet button if user is not logged in OR if they need to connect wallet */}
+          {(!user || !user.role) && <WalletButton />}
+
+          {/* Show user info if logged in */}
+          {user?.role && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+              <Shield className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium capitalize">
+                {user.role}
+              </span>
+            </div>
+          )}
+
           <Button
             variant="ghost"
             size="icon"

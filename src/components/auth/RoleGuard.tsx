@@ -1,3 +1,4 @@
+// frontend/src/components/auth/RoleGuard.tsx
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,8 +36,15 @@ export function RoleGuard({
     return <Navigate to="/" replace />;
   }
 
-  // Check if user has required role
-  if (!allowedRoles.includes(user.role)) {
+  // Check if user has required role (allow multiple roles)
+  const hasRequiredRole = allowedRoles.some(
+    (role) =>
+      user.role === role ||
+      (role === "verifier" &&
+        ["verifier", "employer", "university"].includes(user.role)),
+  );
+
+  if (!hasRequiredRole) {
     console.log(
       `🚫 Role ${user.role} not allowed, redirecting to ${redirectTo}`,
     );

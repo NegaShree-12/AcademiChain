@@ -1,3 +1,4 @@
+// frontend/src/pages/institution/IssuedCredentialsPage.tsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,8 @@ import {
   Calendar,
   User,
   Building,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -37,18 +40,21 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { institutionAPI } from "@/lib/api";
 
 interface Credential {
-  id: string;
+  _id: string;
   credentialId: string;
   title: string;
-  type: "degree" | "certificate" | "transcript" | "diploma";
+  credentialType: "degree" | "certificate" | "transcript" | "diploma";
   studentName: string;
-  studentWallet: string;
+  studentEmail: string;
   issueDate: string;
-  txHash: string;
-  status: "verified" | "pending" | "failed";
-  institution: string;
+  blockchainTxHash: string;
+  blockchainStatus: "verified" | "pending" | "failed";
+  institutionName: string;
+  description?: string;
+  isRevoked?: boolean;
 }
 
 export function IssuedCredentialsPage() {
@@ -60,85 +66,47 @@ export function IssuedCredentialsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load mock data
+  // Load credentials from API
   useEffect(() => {
-    loadCredentials();
+    fetchCredentials();
   }, []);
 
   useEffect(() => {
     filterCredentials();
   }, [credentials, searchQuery, statusFilter, typeFilter]);
 
-  const loadCredentials = () => {
-    const mockCredentials: Credential[] = [
-      {
-        id: "1",
-        credentialId: "CRED-2024-001",
-        title: "Bachelor of Computer Science",
-        type: "degree",
-        studentName: "John Doe",
-        studentWallet: "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD45",
-        issueDate: "2024-01-15",
-        txHash:
-          "0x8f7d3a2c1e4b5d6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f",
-        status: "verified",
-        institution: "MIT",
-      },
-      {
-        id: "2",
-        credentialId: "CRED-2024-002",
-        title: "Master of Data Science",
-        type: "degree",
-        studentName: "Jane Smith",
-        studentWallet: "0x8f7d3a2c1e4b5d6f7a8b9c0d1e2f3a4b5c6d7e8f",
-        issueDate: "2024-01-20",
-        txHash:
-          "0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
-        status: "verified",
-        institution: "MIT",
-      },
-      {
-        id: "3",
-        credentialId: "CRED-2024-003",
-        title: "Blockchain Developer Certificate",
-        type: "certificate",
-        studentName: "Bob Johnson",
-        studentWallet: "0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
-        issueDate: "2024-02-01",
-        txHash:
-          "0x2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c",
-        status: "pending",
-        institution: "MIT",
-      },
-      {
-        id: "4",
-        credentialId: "CRED-2024-004",
-        title: "Academic Transcript",
-        type: "transcript",
-        studentName: "Alice Williams",
-        studentWallet: "0x9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d",
-        issueDate: "2024-01-10",
-        txHash:
-          "0x3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d",
-        status: "verified",
-        institution: "MIT",
-      },
-      {
-        id: "5",
-        credentialId: "CRED-2024-005",
-        title: "PhD in Physics",
-        type: "degree",
-        studentName: "Charlie Brown",
-        studentWallet: "0x5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e",
-        issueDate: "2023-12-05",
-        txHash:
-          "0x4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e",
-        status: "failed",
-        institution: "MIT",
-      },
-    ];
-    setCredentials(mockCredentials);
+  const fetchCredentials = async () => {
+    try {
+      setIsLoading(true);
+      console.log("📋 Fetching credentials from API...");
+
+      const response = await institutionAPI.getIssuedCredentials();
+      console.log("📋 API Response:", response);
+
+      let credentialsList = [];
+      if (response.data?.data) {
+        credentialsList = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        credentialsList = response.data;
+      } else {
+        credentialsList = response.data || [];
+      }
+
+      console.log(`✅ Found ${credentialsList.length} credentials`);
+      setCredentials(credentialsList);
+    } catch (error) {
+      console.error("❌ Failed to fetch credentials:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load credentials",
+        variant: "destructive",
+      });
+      setCredentials([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const filterCredentials = () => {
@@ -149,21 +117,23 @@ export function IssuedCredentialsPage() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (cred) =>
-          cred.title.toLowerCase().includes(query) ||
-          cred.studentName.toLowerCase().includes(query) ||
-          cred.credentialId.toLowerCase().includes(query) ||
-          cred.txHash.toLowerCase().includes(query),
+          cred.title?.toLowerCase().includes(query) ||
+          cred.studentName?.toLowerCase().includes(query) ||
+          cred.credentialId?.toLowerCase().includes(query) ||
+          cred.blockchainTxHash?.toLowerCase().includes(query),
       );
     }
 
     // Apply status filter
     if (statusFilter !== "all") {
-      filtered = filtered.filter((cred) => cred.status === statusFilter);
+      filtered = filtered.filter(
+        (cred) => cred.blockchainStatus === statusFilter,
+      );
     }
 
     // Apply type filter
     if (typeFilter !== "all") {
-      filtered = filtered.filter((cred) => cred.type === typeFilter);
+      filtered = filtered.filter((cred) => cred.credentialType === typeFilter);
     }
 
     setFilteredCredentials(filtered);
@@ -177,7 +147,7 @@ export function IssuedCredentialsPage() {
     });
   };
 
-  const getStatusBadge = (status: Credential["status"]) => {
+  const getStatusBadge = (status: string) => {
     const config = {
       verified: {
         icon: CheckCircle2,
@@ -195,17 +165,17 @@ export function IssuedCredentialsPage() {
         className: "bg-destructive/10 text-destructive border-destructive/20",
       },
     };
-    return config[status];
+    return config[status] || config.pending;
   };
 
-  const getTypeIcon = (type: Credential["type"]) => {
+  const getTypeIcon = (type: string) => {
     const icons = {
       degree: GraduationCap,
       certificate: Award,
       transcript: FileText,
       diploma: Award,
     };
-    return icons[type];
+    return icons[type] || FileText;
   };
 
   const downloadCredential = (credential: Credential) => {
@@ -213,14 +183,14 @@ export function IssuedCredentialsPage() {
       credential: {
         id: credential.credentialId,
         title: credential.title,
-        type: credential.type,
+        type: credential.credentialType,
         studentName: credential.studentName,
-        institution: credential.institution,
+        institution: credential.institutionName,
         issueDate: credential.issueDate,
-        txHash: credential.txHash,
+        txHash: credential.blockchainTxHash,
       },
       verification: {
-        status: credential.status,
+        status: credential.blockchainStatus,
         timestamp: new Date().toISOString(),
       },
     };
@@ -241,12 +211,28 @@ export function IssuedCredentialsPage() {
     });
   };
 
-  const stats = {
-    total: credentials.length,
-    verified: credentials.filter((c) => c.status === "verified").length,
-    pending: credentials.filter((c) => c.status === "pending").length,
-    failed: credentials.filter((c) => c.status === "failed").length,
-  };
+  // Calculate stats
+  const totalIssued = credentials.length;
+  const verified = credentials.filter(
+    (c) => c.blockchainStatus === "verified",
+  ).length;
+  const pending = credentials.filter(
+    (c) => c.blockchainStatus === "pending",
+  ).length;
+  const failed = credentials.filter(
+    (c) => c.blockchainStatus === "failed",
+  ).length;
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading credentials...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
@@ -258,12 +244,22 @@ export function IssuedCredentialsPage() {
             View and manage all blockchain-verified credentials
           </p>
         </div>
-        <Link to="/institution/upload">
-          <Button className="gap-2">
-            <Award className="h-4 w-4" />
-            Issue New
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={fetchCredentials}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
           </Button>
-        </Link>
+          <Link to="/institution/upload">
+            <Button className="gap-2">
+              <Award className="h-4 w-4" />
+              Issue New
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -273,7 +269,7 @@ export function IssuedCredentialsPage() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm text-muted-foreground">Total Issued</p>
-                <p className="text-3xl font-bold mt-2">{stats.total}</p>
+                <p className="text-3xl font-bold mt-2">{totalIssued}</p>
               </div>
               <div className="p-3 bg-primary/10 rounded-lg">
                 <FileText className="h-5 w-5 text-primary" />
@@ -288,7 +284,7 @@ export function IssuedCredentialsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Verified</p>
                 <p className="text-3xl font-bold mt-2 text-success">
-                  {stats.verified}
+                  {verified}
                 </p>
               </div>
               <div className="p-3 bg-success/10 rounded-lg">
@@ -304,7 +300,7 @@ export function IssuedCredentialsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="text-3xl font-bold mt-2 text-pending">
-                  {stats.pending}
+                  {pending}
                 </p>
               </div>
               <div className="p-3 bg-pending/10 rounded-lg">
@@ -320,7 +316,7 @@ export function IssuedCredentialsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Failed</p>
                 <p className="text-3xl font-bold mt-2 text-destructive">
-                  {stats.failed}
+                  {failed}
                 </p>
               </div>
               <div className="p-3 bg-destructive/10 rounded-lg">
@@ -369,11 +365,6 @@ export function IssuedCredentialsPage() {
                   <SelectItem value="diploma">Diploma</SelectItem>
                 </SelectContent>
               </Select>
-
-              <Button variant="outline" className="gap-2">
-                <Filter className="h-4 w-4" />
-                More Filters
-              </Button>
             </div>
           </div>
         </CardContent>
@@ -420,12 +411,14 @@ export function IssuedCredentialsPage() {
                 </TableRow>
               ) : (
                 filteredCredentials.map((credential) => {
-                  const StatusBadge = getStatusBadge(credential.status);
+                  const StatusBadge = getStatusBadge(
+                    credential.blockchainStatus,
+                  );
                   const StatusIcon = StatusBadge.icon;
-                  const TypeIcon = getTypeIcon(credential.type);
+                  const TypeIcon = getTypeIcon(credential.credentialType);
                   return (
                     <TableRow
-                      key={credential.id}
+                      key={credential._id}
                       className="group hover:bg-muted/50"
                     >
                       <TableCell>
@@ -470,35 +463,39 @@ export function IssuedCredentialsPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <code className="text-xs font-mono">
-                            {credential.txHash.slice(0, 10)}...
-                            {credential.txHash.slice(-8)}
+                            {credential.blockchainTxHash?.slice(0, 10)}...
+                            {credential.blockchainTxHash?.slice(-8)}
                           </code>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() =>
-                              copyToClipboard(
-                                credential.txHash,
-                                "Transaction hash copied",
-                              )
-                            }
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() =>
-                              window.open(
-                                `https://sepolia.etherscan.io/tx/${credential.txHash}`,
-                                "_blank",
-                              )
-                            }
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
+                          {credential.blockchainTxHash && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  copyToClipboard(
+                                    credential.blockchainTxHash!,
+                                    "Transaction hash copied",
+                                  )
+                                }
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  window.open(
+                                    `https://sepolia.etherscan.io/tx/${credential.blockchainTxHash}`,
+                                    "_blank",
+                                  )
+                                }
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">

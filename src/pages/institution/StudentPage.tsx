@@ -1,3 +1,4 @@
+// frontend/src/pages/institution/StudentPage.tsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,8 @@ import {
   Copy,
   CheckCircle2,
   Clock,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -53,8 +56,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { institutionAPI } from "@/lib/api";
+import { format } from "date-fns";
 
 interface Student {
+  _id: string;
   id: string;
   name: string;
   email: string;
@@ -64,6 +70,7 @@ interface Student {
   enrollmentDate: string;
   phone?: string;
   credentials: number;
+  studentId?: string;
 }
 
 export function StudentsPage() {
@@ -74,6 +81,8 @@ export function StudentsPage() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // New student form
   const [newStudent, setNewStudent] = useState({
@@ -84,69 +93,48 @@ export function StudentsPage() {
     phone: "",
   });
 
-  // Load mock data
+  // Load students from API on mount
   useEffect(() => {
-    loadStudents();
+    fetchStudents();
   }, []);
 
   useEffect(() => {
     filterStudents();
   }, [students, searchQuery]);
 
-  const loadStudents = () => {
-    const mockStudents: Student[] = [
-      {
-        id: "1",
-        name: "John Doe",
-        email: "john.doe@mit.edu",
-        walletAddress: "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD45",
-        status: "active",
-        program: "Computer Science",
-        enrollmentDate: "2024-01-15",
-        credentials: 3,
-      },
-      {
-        id: "2",
-        name: "Jane Smith",
-        email: "jane.smith@mit.edu",
-        walletAddress: "0x8f7d3a2c1e4b5d6f7a8b9c0d1e2f3a4b5c6d7e8f",
-        status: "active",
-        program: "Data Science",
-        enrollmentDate: "2024-01-20",
-        credentials: 2,
-      },
-      {
-        id: "3",
-        name: "Bob Johnson",
-        email: "bob.j@mit.edu",
-        walletAddress: "0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
-        status: "pending",
-        program: "Engineering",
-        enrollmentDate: "2024-02-01",
-        credentials: 0,
-      },
-      {
-        id: "4",
-        name: "Alice Williams",
-        email: "alice.w@mit.edu",
-        walletAddress: "0x9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d",
-        status: "active",
-        program: "Business Administration",
-        enrollmentDate: "2024-01-10",
-        credentials: 1,
-      },
-      {
-        id: "5",
-        name: "Charlie Brown",
-        email: "charlie.b@mit.edu",
-        walletAddress: "0x5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e",
-        status: "inactive",
-        program: "Physics",
-        enrollmentDate: "2023-12-05",
-        credentials: 2,
-      },
-    ];
-    setStudents(mockStudents);
+  // In your fetchStudents function, update the data transformation:
+  const fetchStudents = async () => {
+    try {
+      setIsLoading(true);
+      console.log("📋 Fetching students from API...");
+
+      const response = await institutionAPI.getStudents();
+      console.log("📋 API Response:", response);
+
+      // The response structure from your API is { success: true, data: [...] }
+      let studentList = [];
+      if (response.data?.success && Array.isArray(response.data.data)) {
+        studentList = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        studentList = response.data;
+      } else if (response.data?.data) {
+        studentList = response.data.data;
+      } else {
+        studentList = response.data || [];
+      }
+
+      console.log("📋 Student list:", studentList);
+      setStudents(studentList);
+    } catch (error) {
+      console.error("❌ Failed to fetch students:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to load students",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const filterStudents = () => {
@@ -161,70 +149,157 @@ export function StudentsPage() {
         student.name.toLowerCase().includes(query) ||
         student.email.toLowerCase().includes(query) ||
         student.program.toLowerCase().includes(query) ||
-        student.walletAddress.toLowerCase().includes(query),
+        (student.walletAddress &&
+          student.walletAddress.toLowerCase().includes(query)),
     );
     setFilteredStudents(filtered);
   };
 
-  const handleAddStudent = () => {
-    if (!newStudent.name || !newStudent.email || !newStudent.walletAddress) {
+  const handleAddStudent = async () => {
+    // Validate required fields
+    if (!newStudent.name || !newStudent.email) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "Name and Email are required fields",
         variant: "destructive",
       });
       return;
     }
 
-    const student: Student = {
-      id: Date.now().toString(),
-      name: newStudent.name,
-      email: newStudent.email,
-      walletAddress: newStudent.walletAddress,
-      program: newStudent.program || "Undeclared",
-      status: "pending",
-      enrollmentDate: new Date().toISOString().split("T")[0],
-      credentials: 0,
-      phone: newStudent.phone,
-    };
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newStudent.email)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setStudents([...students, student]);
-    setShowAddDialog(false);
-    setNewStudent({
-      name: "",
-      email: "",
-      walletAddress: "",
-      program: "",
-      phone: "",
-    });
+    try {
+      setIsSubmitting(true);
 
-    toast({
-      title: "Success",
-      description: "Student added successfully",
-    });
+      const studentData = {
+        name: newStudent.name,
+        email: newStudent.email,
+        walletAddress:
+          newStudent.walletAddress ||
+          `0x${Math.random().toString(36).substring(2, 15)}`,
+        program: newStudent.program || "Undeclared",
+        phone: newStudent.phone,
+        status: "pending",
+      };
+
+      console.log("📤 Adding student:", studentData);
+
+      const response = await institutionAPI.addStudent(studentData);
+      console.log("✅ Student added:", response.data);
+
+      // Refresh the student list
+      await fetchStudents();
+
+      // Reset form and close dialog
+      setShowAddDialog(false);
+      setNewStudent({
+        name: "",
+        email: "",
+        walletAddress: "",
+        program: "",
+        phone: "",
+      });
+
+      toast({
+        title: "Success",
+        description: "Student added successfully",
+      });
+    } catch (error: any) {
+      console.error("❌ Failed to add student:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to add student",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleEditStudent = () => {
+  const handleEditStudent = async () => {
     if (!selectedStudent) return;
 
-    const updatedStudents = students.map((s) =>
-      s.id === selectedStudent.id ? selectedStudent : s,
-    );
-    setStudents(updatedStudents);
-    setShowEditDialog(false);
+    try {
+      setIsSubmitting(true);
 
-    toast({
-      title: "Success",
-      description: "Student updated successfully",
-    });
+      const updateData = {
+        name: selectedStudent.name,
+        email: selectedStudent.email,
+        program: selectedStudent.program,
+        status: selectedStudent.status,
+      };
+
+      console.log("📤 Updating student:", selectedStudent._id, updateData);
+
+      const response = await institutionAPI.updateStudent(
+        selectedStudent._id,
+        updateData,
+      );
+      console.log("✅ Student updated:", response.data);
+
+      // Refresh the student list
+      await fetchStudents();
+
+      setShowEditDialog(false);
+      setSelectedStudent(null);
+
+      toast({
+        title: "Success",
+        description: "Student updated successfully",
+      });
+    } catch (error: any) {
+      console.error("❌ Failed to update student:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to update student",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteStudent = (id: string) => {
-    setStudents(students.filter((s) => s.id !== id));
-    toast({
-      title: "Success",
-      description: "Student deleted successfully",
-    });
+  const handleDeleteStudent = async (id: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this student? This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      console.log("📤 Deleting student:", id);
+
+      await institutionAPI.deleteStudent(id);
+      console.log("✅ Student deleted");
+
+      // Refresh the student list
+      await fetchStudents();
+
+      toast({
+        title: "Success",
+        description: "Student deleted successfully",
+      });
+    } catch (error: any) {
+      console.error("❌ Failed to delete student:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to delete student",
+        variant: "destructive",
+      });
+    }
   };
 
   const copyToClipboard = (text: string, description: string) => {
@@ -253,8 +328,55 @@ export function StudentsPage() {
         className: "bg-muted text-muted-foreground border-border",
       },
     };
-    return config[status];
+    return config[status] || config.pending;
   };
+
+  const exportStudents = () => {
+    const data = students.map((s) => ({
+      Name: s.name,
+      Email: s.email,
+      Program: s.program,
+      Status: s.status,
+      "Wallet Address": s.walletAddress,
+      "Enrollment Date": format(new Date(s.enrollmentDate), "PPP"),
+      Credentials: s.credentials,
+    }));
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `students-${format(new Date(), "yyyy-MM-dd")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export Started",
+      description: "Students data exported successfully",
+    });
+  };
+
+  // Calculate stats
+  const totalStudents = students.length;
+  const activeStudents = students.filter((s) => s.status === "active").length;
+  const pendingStudents = students.filter((s) => s.status === "pending").length;
+  const totalCredentials = students.reduce(
+    (acc, s) => acc + (s.credentials || 0),
+    0,
+  );
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading students...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
@@ -267,7 +389,11 @@ export function StudentsPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={fetchStudents}>
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={exportStudents}>
             <Download className="h-4 w-4" />
             Export
           </Button>
@@ -285,7 +411,7 @@ export function StudentsPage() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm text-muted-foreground">Total Students</p>
-                <p className="text-3xl font-bold mt-2">{students.length}</p>
+                <p className="text-3xl font-bold mt-2">{totalStudents}</p>
               </div>
               <div className="p-3 bg-primary/10 rounded-lg">
                 <Users className="h-5 w-5 text-primary" />
@@ -300,7 +426,7 @@ export function StudentsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Active</p>
                 <p className="text-3xl font-bold mt-2 text-success">
-                  {students.filter((s) => s.status === "active").length}
+                  {activeStudents}
                 </p>
               </div>
               <div className="p-3 bg-success/10 rounded-lg">
@@ -316,7 +442,7 @@ export function StudentsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="text-3xl font-bold mt-2 text-pending">
-                  {students.filter((s) => s.status === "pending").length}
+                  {pendingStudents}
                 </p>
               </div>
               <div className="p-3 bg-pending/10 rounded-lg">
@@ -333,9 +459,7 @@ export function StudentsPage() {
                 <p className="text-sm text-muted-foreground">
                   Total Credentials
                 </p>
-                <p className="text-3xl font-bold mt-2">
-                  {students.reduce((acc, s) => acc + s.credentials, 0)}
-                </p>
+                <p className="text-3xl font-bold mt-2">{totalCredentials}</p>
               </div>
               <div className="p-3 bg-purple-500/10 rounded-lg">
                 <GraduationCap className="h-5 w-5 text-purple-500" />
@@ -408,7 +532,7 @@ export function StudentsPage() {
                   const StatusIcon = StatusBadge.icon;
                   return (
                     <TableRow
-                      key={student.id}
+                      key={student._id || student.id}
                       className="group hover:bg-muted/50"
                     >
                       <TableCell>
@@ -425,22 +549,25 @@ export function StudentsPage() {
                         <div className="flex items-center gap-2">
                           <Wallet className="h-3 w-3 text-muted-foreground" />
                           <code className="text-xs font-mono">
-                            {student.walletAddress.slice(0, 8)}...
-                            {student.walletAddress.slice(-6)}
+                            {student.walletAddress
+                              ? `${student.walletAddress.slice(0, 8)}...${student.walletAddress.slice(-6)}`
+                              : "N/A"}
                           </code>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() =>
-                              copyToClipboard(
-                                student.walletAddress,
-                                "Wallet address copied",
-                              )
-                            }
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
+                          {student.walletAddress && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() =>
+                                copyToClipboard(
+                                  student.walletAddress!,
+                                  "Wallet address copied",
+                                )
+                              }
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -454,11 +581,14 @@ export function StudentsPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="font-mono">
-                          {student.credentials}
+                          {student.credentials || 0}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(student.enrollmentDate).toLocaleDateString()}
+                        {format(
+                          new Date(student.enrollmentDate),
+                          "MMM d, yyyy",
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -486,7 +616,9 @@ export function StudentsPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="gap-2 text-destructive"
-                              onClick={() => handleDeleteStudent(student.id)}
+                              onClick={() =>
+                                handleDeleteStudent(student._id || student.id)
+                              }
                             >
                               <Trash2 className="h-4 w-4" />
                               Delete
@@ -523,6 +655,7 @@ export function StudentsPage() {
                 onChange={(e) =>
                   setNewStudent({ ...newStudent, name: e.target.value })
                 }
+                disabled={isSubmitting}
               />
             </div>
 
@@ -536,11 +669,12 @@ export function StudentsPage() {
                 onChange={(e) =>
                   setNewStudent({ ...newStudent, email: e.target.value })
                 }
+                disabled={isSubmitting}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="wallet">Wallet Address *</Label>
+              <Label htmlFor="wallet">Wallet Address</Label>
               <Input
                 id="wallet"
                 placeholder="0x..."
@@ -551,7 +685,11 @@ export function StudentsPage() {
                     walletAddress: e.target.value,
                   })
                 }
+                disabled={isSubmitting}
               />
+              <p className="text-xs text-muted-foreground">
+                Optional - can be added later
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -563,6 +701,7 @@ export function StudentsPage() {
                 onChange={(e) =>
                   setNewStudent({ ...newStudent, program: e.target.value })
                 }
+                disabled={isSubmitting}
               />
             </div>
 
@@ -575,15 +714,29 @@ export function StudentsPage() {
                 onChange={(e) =>
                   setNewStudent({ ...newStudent, phone: e.target.value })
                 }
+                disabled={isSubmitting}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddDialog(false)}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button onClick={handleAddStudent}>Add Student</Button>
+            <Button onClick={handleAddStudent} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Student"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -611,6 +764,7 @@ export function StudentsPage() {
                       name: e.target.value,
                     })
                   }
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -626,6 +780,7 @@ export function StudentsPage() {
                       email: e.target.value,
                     })
                   }
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -640,6 +795,7 @@ export function StudentsPage() {
                       program: e.target.value,
                     })
                   }
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -650,6 +806,7 @@ export function StudentsPage() {
                   onValueChange={(value: "active" | "pending" | "inactive") =>
                     setSelectedStudent({ ...selectedStudent, status: value })
                   }
+                  disabled={isSubmitting}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -661,14 +818,43 @@ export function StudentsPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-wallet">Wallet Address</Label>
+                <Input
+                  id="edit-wallet"
+                  value={selectedStudent.walletAddress || ""}
+                  onChange={(e) =>
+                    setSelectedStudent({
+                      ...selectedStudent,
+                      walletAddress: e.target.value,
+                    })
+                  }
+                  disabled={isSubmitting}
+                  placeholder="0x..."
+                />
+              </div>
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditDialog(false)}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button onClick={handleEditStudent}>Save Changes</Button>
+            <Button onClick={handleEditStudent} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

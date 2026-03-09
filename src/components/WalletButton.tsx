@@ -18,36 +18,49 @@ export function WalletButton() {
   } = useMetaMask();
 
   const { toast } = useToast();
-  const { login, logout, user } = useAuth();
+  const { logout, user } = useAuth();
   const [roleSelectorOpen, setRoleSelectorOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // ✅ Move useEffect INSIDE the component
+  // Check for existing user role on mount and storage changes
   useEffect(() => {
     const checkUserRole = () => {
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        if (parsed.role && window.location.pathname === "/") {
-          window.location.href = `/${parsed.role}`;
+        try {
+          const parsed = JSON.parse(storedUser);
+          // Only redirect if we're on the home page and user has a role
+          if (parsed.role && window.location.pathname === "/") {
+            window.location.href = `/${parsed.role}`;
+          }
+        } catch (error) {
+          console.error("Error parsing stored user:", error);
         }
       }
     };
 
+    // Check on mount
+    checkUserRole();
+
+    // Listen for storage changes (login in another tab)
     window.addEventListener("storage", checkUserRole);
     return () => window.removeEventListener("storage", checkUserRole);
   }, []);
 
-  console.log(
-    "🔵 WalletButton rendered - isConnected:",
-    isConnected,
-    "roleSelectorOpen:",
-    roleSelectorOpen,
-    "account:",
-    account,
-  );
+  // Debug logging - only in development
+  if (process.env.NODE_ENV === "development") {
+    console.log(
+      "🔵 WalletButton rendered - isConnected:",
+      isConnected,
+      "roleSelectorOpen:",
+      roleSelectorOpen,
+      "account:",
+      account,
+    );
+  }
 
   const truncateAddress = (addr: string) => {
+    if (!addr) return "";
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
@@ -75,12 +88,13 @@ export function WalletButton() {
 
         console.log("🟢 authAPI.walletLogin RESPONSE:", response);
 
-        // 🔥 FIX: Store token and user from response.data
+        // Check if response has the expected structure
         if (
-          response.data.success &&
+          response?.data?.success &&
           response.data.token &&
           response.data.user
         ) {
+          // Store token and user in localStorage
           localStorage.setItem("token", response.data.token);
           localStorage.setItem("user", JSON.stringify(response.data.user));
 
@@ -101,36 +115,61 @@ export function WalletButton() {
               "✅ User has role, redirecting to:",
               response.data.user.role,
             );
-            window.location.href = `/${response.data.user.role}`;
+            // Use setTimeout to ensure localStorage is written before redirect
+            setTimeout(() => {
+              window.location.href = `/${response.data.user.role}`;
+            }, 100);
           }
         } else {
-          console.error("❌ Invalid response format:", response.data);
+          console.error("❌ Invalid response format:", response?.data);
           toast({
             title: "❌ Login Failed",
-            description: "Invalid response from server",
+            description:
+              response?.data?.message || "Invalid response from server",
             variant: "destructive",
           });
         }
       }
     } catch (error: any) {
       console.error("❌ Connection error:", error);
-      toast({
-        title: "❌ Connection Failed",
-        description: error?.message || "Failed to connect wallet",
-        variant: "destructive",
-      });
+
+      // Handle user rejection separately
+      if (error.code === 4001 || error.message?.includes("rejected")) {
+        toast({
+          title: "❌ Connection Rejected",
+          description: "You rejected the connection request",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "❌ Connection Failed",
+          description:
+            error?.response?.data?.message ||
+            error?.message ||
+            "Failed to connect wallet",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoggingIn(false);
     }
   };
+
   const handleDisconnect = async () => {
     try {
       disconnect();
       await logout();
+
+      // Clear any role selector state
+      setRoleSelectorOpen(false);
+
       toast({
         title: "👋 Disconnected",
         description: "Wallet has been disconnected",
       });
+
+      // Redirect to home page
+      window.location.href = "/";
     } catch (error) {
       console.error("Disconnection error:", error);
       toast({
@@ -141,6 +180,7 @@ export function WalletButton() {
     }
   };
 
+  // If MetaMask is not installed
   if (!isInstalled) {
     return (
       <Button
@@ -154,6 +194,7 @@ export function WalletButton() {
     );
   }
 
+  // If connecting or logging in
   if (isConnecting || isLoggingIn) {
     return (
       <Button disabled variant="outline" className="gap-2">
@@ -163,6 +204,7 @@ export function WalletButton() {
     );
   }
 
+  // If connected and account exists
   if (isConnected && account) {
     return (
       <>
@@ -191,6 +233,7 @@ export function WalletButton() {
     );
   }
 
+  // Default state - not connected
   return (
     <>
       <Button onClick={handleConnect} variant="wallet" className="gap-2">
