@@ -1,335 +1,352 @@
-import React, { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { verificationAPI } from "../lib/api";
+// frontend/src/pages/Verify.tsx
+
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { Header } from "@/components/Header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { verificationAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import {
-  Shield,
-  CheckCircle,
-  XCircle,
-  Clock,
-  User,
-  Building2,
-  Calendar,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
   Hash,
-  Globe,
-  Award,
   ExternalLink,
+  Award,
+  Calendar,
+  User,
+  Building,
+  Shield,
+  Copy,
 } from "lucide-react";
 
-const Verify: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const shareId = searchParams.get("shareId");
-  const credentialId = searchParams.get("credentialId");
+export default function Verify() {
+  const { hash } = useParams();
+  const { toast } = useToast();
 
-  const [loading, setLoading] = useState(true);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
+  const [hashInput, setHashInput] = useState(hash || "");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    verifyCredential();
-  }, [shareId, credentialId]);
+    if (hash) {
+      setHashInput(hash);
+      verifyByHash();
+    }
+  }, [hash]);
 
-  const verifyCredential = async () => {
+  const verifyByHash = async () => {
+    if (!hashInput.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a credential hash",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerificationResult(null);
+    setError(null);
+
     try {
-      setLoading(true);
-      setError(null);
+      console.log("🔍 Verifying hash:", hashInput);
+      const response = await verificationAPI.verifyByHash(hashInput);
+      console.log("✅ Verification response:", response.data);
 
-      let response;
-      if (shareId) {
-        response = await verificationAPI.verifyByShareId(shareId);
-      } else if (credentialId) {
-        response = await verificationAPI.verifyDirect(credentialId);
-      } else {
-        setError("No verification ID provided");
-        return;
-      }
+      setVerificationResult(response.data);
 
-      setVerificationResult(response.data.data);
+      toast({
+        title: response.data.isValid ? "✅ Verified" : "❌ Invalid",
+        description: response.data.message,
+      });
     } catch (error: any) {
       console.error("Verification error:", error);
-      setError(error.response?.data?.message || "Failed to verify credential");
+      setError(error.response?.data?.message || "Failed to verify hash");
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to verify hash",
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false);
+      setIsVerifying(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">
-            Verifying Credential
-          </h2>
-          <p className="text-gray-500">
-            Please wait while we verify the credential on blockchain...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <XCircle className="h-12 w-12 text-red-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Verification Failed
-          </h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => (window.location.href = "/")}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Go to Homepage
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const { credential, verification, shareInfo } = verificationResult;
-  const isVerified =
-    verification.status === "verified" || verification.verifiedOnChain;
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: "Copied to clipboard",
+    });
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            {isVerified ? (
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="h-12 w-12 text-green-600" />
-              </div>
-            ) : (
-              <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center">
-                <Clock className="h-12 w-12 text-yellow-600" />
-              </div>
-            )}
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {isVerified ? "Verified Credential" : "Pending Verification"}
-          </h1>
-          <p className="text-gray-600">
-            {isVerified
-              ? "This credential has been verified on the blockchain"
-              : "This credential is awaiting blockchain confirmation"}
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="container py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Verify Credentials</h1>
+          <p className="text-muted-foreground">
+            Verify academic credentials on the blockchain
           </p>
         </div>
 
-        {/* Verification Badge */}
-        <div
-          className={`mb-6 p-4 rounded-lg ${
-            isVerified
-              ? "bg-green-50 border border-green-200"
-              : "bg-yellow-50 border border-yellow-200"
-          }`}
-        >
-          <div className="flex items-center">
-            <Shield
-              className={`h-5 w-5 ${
-                isVerified ? "text-green-600" : "text-yellow-600"
-              } mr-2`}
-            />
-            <span
-              className={`font-medium ${
-                isVerified ? "text-green-800" : "text-yellow-800"
-              }`}
-            >
-              {isVerified
-                ? "Blockchain Verified"
-                : "Blockchain Verification Pending"}
-            </span>
-            {verification.blockchainNetwork && (
-              <span className="ml-2 text-sm text-gray-600">
-                Network: {verification.blockchainNetwork}
-              </span>
-            )}
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Left Column - Hash Verification */}
+          <div>
+            <Card>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Transaction Hash / Credential ID
+                    </label>
+                    <Input
+                      placeholder="0x8f7d3a2c1e4b5d6f7a8b9c0d1e2f3a4b5c6d7e8f"
+                      value={hashInput}
+                      onChange={(e) => setHashInput(e.target.value)}
+                      className="font-mono"
+                      disabled={isVerifying}
+                    />
+                  </div>
+                  <Button
+                    onClick={verifyByHash}
+                    disabled={!hashInput.trim() || isVerifying}
+                    className="w-full gap-2"
+                  >
+                    {isVerifying ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      <>
+                        <Hash className="h-4 w-4" />
+                        Verify Hash
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
 
-        {/* Main Content */}
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          {/* Credential Header */}
-          <div className="px-8 py-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              {credential.title}
-            </h2>
-            <p className="text-gray-600">{credential.description}</p>
-          </div>
-
-          {/* Credential Details */}
-          <div className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Left Column */}
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
-                    Student Information
-                  </h3>
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                    <div className="flex items-start">
-                      <User className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
-                      <div>
-                        <p className="text-sm text-gray-500">Name</p>
-                        <p className="text-lg font-semibold text-gray-900">
-                          {credential.studentName}
-                        </p>
-                      </div>
+          {/* Right Column - Verification Result */}
+          <div>
+            {isVerifying ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    Verifying credential...
+                  </p>
+                </CardContent>
+              </Card>
+            ) : error ? (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                      <AlertCircle className="h-6 w-6 text-destructive" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-destructive">
+                        Verification Failed
+                      </h3>
+                      <p className="text-sm text-muted-foreground">{error}</p>
                     </div>
                   </div>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
-                    Issuing Institution
-                  </h3>
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                    <div className="flex items-start">
-                      <Building2 className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
-                      <div>
-                        <p className="text-sm text-gray-500">Institution</p>
-                        <p className="text-lg font-semibold text-gray-900">
-                          {credential.institutionName}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column */}
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
-                    Credential Details
-                  </h3>
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                    <div className="flex items-start">
-                      <Calendar className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
-                      <div>
-                        <p className="text-sm text-gray-500">Issue Date</p>
-                        <p className="font-medium text-gray-900">
-                          {new Date(credential.issueDate).toLocaleDateString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            },
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start">
-                      <Award className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
-                      <div>
-                        <p className="text-sm text-gray-500">Credential Type</p>
-                        <p className="font-medium text-gray-900 capitalize">
-                          {credential.credentialType}
-                        </p>
-                      </div>
-                    </div>
-                    {credential.metadata?.grade && (
-                      <div className="flex items-start">
-                        <Award className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setError(null);
+                      setVerificationResult(null);
+                    }}
+                  >
+                    Try Again
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : verificationResult ? (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    {verificationResult.isValid ? (
+                      <>
+                        <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
+                          <CheckCircle2 className="h-6 w-6 text-success" />
+                        </div>
                         <div>
-                          <p className="text-sm text-gray-500">Grade</p>
-                          <p className="font-medium text-gray-900">
-                            {credential.metadata.grade}
+                          <h3 className="text-xl font-semibold text-success">
+                            Verified
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            This credential is authentic
                           </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                          <AlertCircle className="h-6 w-6 text-destructive" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-semibold text-destructive">
+                            Not Verified
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {verificationResult.message ||
+                              "Credential could not be verified"}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {verificationResult.isValid &&
+                    verificationResult.credential && (
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-lg bg-muted">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Award className="h-5 w-5 text-primary" />
+                            <h4 className="font-semibold">
+                              Credential Details
+                            </h4>
+                          </div>
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-sm font-medium">
+                                {verificationResult.credential.title ||
+                                  "Untitled"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Title
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-sm">
+                                  {verificationResult.credential.studentName ||
+                                    "Unknown"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Student
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm">
+                                  {verificationResult.credential
+                                    .institutionName || "Unknown"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Institution
+                                </p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-sm capitalize">
+                                  {verificationResult.credential
+                                    .credentialType || "Unknown"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Type
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm">
+                                  {verificationResult.credential.issueDate
+                                    ? new Date(
+                                        verificationResult.credential.issueDate,
+                                      ).toLocaleDateString()
+                                    : "Unknown"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Issue Date
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-4 rounded-lg border border-border/50">
+                          <p className="text-sm font-medium mb-2">
+                            Blockchain Proof
+                          </p>
+                          <div className="font-mono text-xs break-all bg-muted p-2 rounded">
+                            {verificationResult.verification
+                              ?.blockchainTxHash || hashInput}
+                          </div>
+                          {verificationResult.verification?.blockNumber && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Block:{" "}
+                              {verificationResult.verification.blockNumber} |
+                              Confirmations:{" "}
+                              {verificationResult.verification.confirmations}
+                            </p>
+                          )}
+                          <div className="flex gap-2 mt-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() =>
+                                copyToClipboard(
+                                  verificationResult.verification
+                                    ?.blockchainTxHash || hashInput,
+                                )
+                              }
+                            >
+                              <Copy className="h-3 w-3" />
+                              Copy Hash
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() =>
+                                window.open(
+                                  `https://sepolia.etherscan.io/tx/${verificationResult.verification?.blockchainTxHash || hashInput}`,
+                                  "_blank",
+                                )
+                              }
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              View on Etherscan
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     )}
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Blockchain Proof */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
-                Blockchain Verification Proof
-              </h3>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Transaction Hash</p>
-                  <code className="text-sm bg-gray-100 px-3 py-2 rounded block truncate">
-                    {verification.blockchainTxHash}
-                  </code>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">IPFS Hash</p>
-                  <code className="text-sm bg-gray-100 px-3 py-2 rounded block truncate">
-                    {verification.ipfsHash}
-                  </code>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">
-                      Verification Timestamp
-                    </p>
-                    <p className="font-medium text-gray-900">
-                      {new Date(verification.timestamp).toLocaleString()}
-                    </p>
-                  </div>
-                  {verification.verifiedOnChain && (
-                    <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
-                      Verified on Chain
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Share Information */}
-            {shareInfo && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
-                  Share Information
-                </h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600">
-                    Shared by{" "}
-                    <span className="font-medium text-gray-900">
-                      {shareInfo.sharedBy}
-                    </span>{" "}
-                    on {new Date(shareInfo.sharedAt).toLocaleDateString()}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    This credential has been viewed {shareInfo.accessNumber}{" "}
-                    times
-                  </p>
-                </div>
-              </div>
+                  <Button
+                    variant="outline"
+                    className="w-full mt-4"
+                    onClick={() => {
+                      setVerificationResult(null);
+                      setError(null);
+                    }}
+                  >
+                    Verify Another
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-12 text-center text-muted-foreground">
+                  <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Enter verification details to see results</p>
+                </CardContent>
+              </Card>
             )}
-
-            {/* Actions */}
-            <div className="mt-8 flex justify-center space-x-4">
-              <button
-                onClick={() => window.print()}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Print Verification
-              </button>
-              <a
-                href={`https://sepolia.etherscan.io/tx/${verification.blockchainTxHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-              >
-                View on Etherscan
-                <ExternalLink className="h-4 w-4 ml-2" />
-              </a>
-            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
-};
-
-export default Verify;
+}

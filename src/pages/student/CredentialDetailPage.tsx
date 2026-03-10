@@ -1,3 +1,5 @@
+// frontend/src/pages/student/CredentialDetailPage.tsx
+
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { studentAPI } from "../../lib/api";
@@ -17,6 +19,7 @@ import {
   Copy,
   ExternalLink,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { useToast } from "../../hooks/use-toast";
 
@@ -24,61 +27,32 @@ interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   credentialId: string;
-  onShare: (data: any) => Promise<void>;
+  qrCode: string | null;
+  shareUrl: string | null;
+  onGenerateShare: (
+    shareType: string,
+    expiresInDays: string,
+    maxAccess: string,
+  ) => Promise<void>;
+  onCopyLink: (text: string) => void;
+  onDownloadQR: () => void;
+  loading: boolean;
 }
 
 const ShareModal: React.FC<ShareModalProps> = ({
   isOpen,
   onClose,
   credentialId,
-  onShare,
+  qrCode,
+  shareUrl,
+  onGenerateShare,
+  onCopyLink,
+  onDownloadQR,
+  loading,
 }) => {
   const [shareType, setShareType] = useState("public");
   const [expiresInDays, setExpiresInDays] = useState("7");
   const [maxAccess, setMaxAccess] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [qrCode, setQrCode] = useState<string | null>(null);
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
-
-  const handleShare = async () => {
-    try {
-      setLoading(true);
-      const response = await studentAPI.generateShareLink(credentialId, {
-        shareType,
-        expiresInDays: parseInt(expiresInDays),
-        maxAccess: maxAccess ? parseInt(maxAccess) : undefined,
-      });
-
-      setQrCode(response.data.data.qrCode);
-      setShareUrl(response.data.data.shareUrl);
-
-      toast({
-        title: "Success",
-        description: "Share link generated successfully",
-      });
-    } catch (error) {
-      console.error("Error generating share link:", error);
-      toast({
-        title: "Error",
-        description: "Failed to generate share link",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast({
-        title: "Copied!",
-        description: "Link copied to clipboard",
-      });
-    } catch (error) {
-      console.error("Error copying to clipboard:", error);
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -148,7 +122,9 @@ const ShareModal: React.FC<ShareModalProps> = ({
                     </div>
 
                     <button
-                      onClick={handleShare}
+                      onClick={() =>
+                        onGenerateShare(shareType, expiresInDays, maxAccess)
+                      }
                       disabled={loading}
                       className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -157,17 +133,38 @@ const ShareModal: React.FC<ShareModalProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="flex justify-center">
-                      <img src={qrCode} alt="QR Code" className="w-48 h-48" />
+                    {/* Debug info */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+                      <p>✅ QR Code generated!</p>
+                      <p className="truncate mt-1 font-mono">
+                        Length: {qrCode.length} characters
+                      </p>
                     </div>
 
+                    {/* QR Code Image */}
+                    <div className="flex justify-center p-4 bg-white rounded-lg border">
+                      <img
+                        src={qrCode}
+                        alt="QR Code"
+                        className="w-48 h-48 block"
+                        onError={(e) => {
+                          console.error("Image failed to load:", e);
+                          e.currentTarget.style.display = "none";
+                        }}
+                        onLoad={() =>
+                          console.log("✅ QR Code image loaded successfully")
+                        }
+                      />
+                    </div>
+
+                    {/* Share URL */}
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <p className="text-xs text-gray-500 truncate mb-2">
                         {shareUrl}
                       </p>
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => copyToClipboard(shareUrl!)}
+                          onClick={() => onCopyLink(shareUrl!)}
                           className="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm flex items-center justify-center"
                         >
                           <Copy className="h-4 w-4 mr-1" />
@@ -183,16 +180,24 @@ const ShareModal: React.FC<ShareModalProps> = ({
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setQrCode(null);
-                        setShareUrl(null);
-                        onClose();
-                      }}
-                      className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Close
-                    </button>
+                    {/* Download and Close buttons */}
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={onDownloadQR}
+                        className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm flex items-center justify-center"
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Download QR
+                      </button>
+                      <button
+                        onClick={() => {
+                          onClose();
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -213,27 +218,114 @@ const CredentialDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
 
+  // Share modal state
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [generatingShare, setGeneratingShare] = useState(false);
+
   useEffect(() => {
-    fetchCredentialDetails();
+    if (id) {
+      fetchCredentialDetails();
+    }
   }, [id]);
 
   const fetchCredentialDetails = async () => {
     try {
       setLoading(true);
+      console.log("📋 Fetching credential details for ID:", id);
+
       const response = await studentAPI.getCredentialById(id!);
+      console.log("✅ Credential details response:", response.data);
+
       setCredential(response.data.data);
       setShareLinks(response.data.shareLinks || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching credential:", error);
       toast({
         title: "Error",
-        description: "Failed to load credential details",
+        description:
+          error.response?.data?.message || "Failed to load credential details",
         variant: "destructive",
       });
       navigate("/student/credentials");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGenerateShare = async (
+    shareType: string,
+    expiresInDays: string,
+    maxAccess: string,
+  ) => {
+    try {
+      setGeneratingShare(true);
+      const response = await studentAPI.generateShareLink(
+        credential.credentialId,
+        {
+          shareType,
+          expiresInDays: parseInt(expiresInDays),
+          maxAccess: maxAccess ? parseInt(maxAccess) : undefined,
+        },
+      );
+
+      console.log("Share link response:", response.data);
+      setQrCode(response.data.data.qrCode);
+      setShareUrl(response.data.data.shareUrl);
+
+      toast({
+        title: "Success",
+        description: "Share link generated successfully",
+      });
+    } catch (error: any) {
+      console.error("Error generating share link:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to generate share link",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingShare(false);
+    }
+  };
+
+  const handleCopyLink = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: "Link copied to clipboard",
+      });
+    } catch (error) {
+      console.error("Error copying to clipboard:", error);
+      toast({
+        title: "Error",
+        description: "Failed to copy to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadQR = () => {
+    if (!qrCode) return;
+
+    const link = document.createElement("a");
+    link.href = qrCode;
+    link.download = `credential-qr-${credential.credentialId}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Downloaded",
+      description: "QR code saved to your device",
+    });
+  };
+
+  const handleCloseModal = () => {
+    setShowShareModal(false);
+    // Don't clear QR code so it stays when reopening
   };
 
   const handleRevokeShare = async (shareId: string) => {
@@ -244,18 +336,20 @@ const CredentialDetailPage: React.FC = () => {
         description: "Share link revoked successfully",
       });
       fetchCredentialDetails();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error revoking share link:", error);
       toast({
         title: "Error",
-        description: "Failed to revoke share link",
+        description:
+          error.response?.data?.message || "Failed to revoke share link",
         variant: "destructive",
       });
     }
   };
 
   const handleDownload = () => {
-    // Create downloadable JSON file
+    if (!credential) return;
+
     const data = {
       credential: {
         id: credential.credentialId,
@@ -284,12 +378,17 @@ const CredentialDetailPage: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    toast({
+      title: "Downloaded",
+      description: "Credential data downloaded successfully",
+    });
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -337,7 +436,7 @@ const CredentialDetailPage: React.FC = () => {
               Transaction confirmed
             </span>
           </div>
-        ) : (
+        ) : credential.blockchainStatus === "pending" ? (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-center">
             <Clock className="h-5 w-5 text-yellow-500 mr-2" />
             <span className="text-yellow-800 font-medium">
@@ -345,6 +444,16 @@ const CredentialDetailPage: React.FC = () => {
             </span>
             <span className="text-yellow-600 text-sm ml-2">
               Awaiting blockchain confirmation
+            </span>
+          </div>
+        ) : (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-center">
+            <XCircle className="h-5 w-5 text-red-500 mr-2" />
+            <span className="text-red-800 font-medium">
+              Verification Failed
+            </span>
+            <span className="text-red-600 text-sm ml-2">
+              Credential could not be verified
             </span>
           </div>
         )}
@@ -458,14 +567,6 @@ const CredentialDetailPage: React.FC = () => {
                         </p>
                       </div>
                     )}
-                    {credential.metadata?.field && (
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-sm text-gray-500">Field of Study</p>
-                        <p className="text-base font-medium text-gray-900">
-                          {credential.metadata.field}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -486,11 +587,16 @@ const CredentialDetailPage: React.FC = () => {
                             {credential.blockchainTxHash}
                           </code>
                           <button
-                            onClick={() =>
+                            onClick={() => {
                               navigator.clipboard.writeText(
                                 credential.blockchainTxHash,
-                              )
-                            }
+                              );
+                              toast({
+                                title: "Copied!",
+                                description:
+                                  "Transaction hash copied to clipboard",
+                              });
+                            }}
                             className="ml-2 p-1 text-gray-500 hover:text-gray-700"
                           >
                             <Copy className="h-4 w-4" />
@@ -589,11 +695,14 @@ const CredentialDetailPage: React.FC = () => {
       {/* Share Modal */}
       <ShareModal
         isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
+        onClose={handleCloseModal}
         credentialId={credential.credentialId}
-        onShare={async (data) => {
-          await fetchCredentialDetails();
-        }}
+        qrCode={qrCode}
+        shareUrl={shareUrl}
+        onGenerateShare={handleGenerateShare}
+        onCopyLink={handleCopyLink}
+        onDownloadQR={handleDownloadQR}
+        loading={generatingShare}
       />
     </div>
   );

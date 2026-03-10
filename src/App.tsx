@@ -1,3 +1,5 @@
+// frontend/src/App.tsx
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // Public Pages
 import { Landing } from "./pages/Landing";
 import Verify from "./pages/Verify";
+import { VerifyCredential } from "./pages/VerifyCredential";
 import NotFound from "./pages/NotFound";
 
 // Student Pages
@@ -27,7 +30,7 @@ import { IssuedCredentialsPage } from "./pages/institution/IssuedCredentialsPage
 import { InstitutionSettingsPage } from "./pages/institution/SettingsPage";
 
 // Verifier Pages
-import { VerifierDashboard } from "./pages/verifier/VerifierDashboard";
+import { VerifierVerify } from "./pages/verifier/VerifierVerify"; // Use the full-featured component
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
@@ -44,10 +47,10 @@ function App() {
       >
         <AuthProvider>
           <Routes>
-            {/* Public Routes */}
+            {/* ================= PUBLIC ROUTES ================= */}
             <Route path="/" element={<Landing />} />
             <Route path="/verify" element={<Verify />} />
-            <Route path="/verify/:hash" element={<Verify />} />
+            <Route path="/verify/:hash" element={<VerifyCredential />} />
 
             {/* ================= STUDENT ROUTES ================= */}
             <Route
@@ -184,7 +187,7 @@ function App() {
                   allowedRoles={["verifier", "employer", "university"]}
                 >
                   <RoleLayout>
-                    <VerifierDashboard />
+                    <VerifierVerify /> {/* Using the full-featured component */}
                   </RoleLayout>
                 </RoleGuard>
               }
@@ -196,7 +199,7 @@ function App() {
                   allowedRoles={["verifier", "employer", "university"]}
                 >
                   <RoleLayout>
-                    <VerifierDashboard />
+                    <VerifierVerify /> {/* Same full-featured component */}
                   </RoleLayout>
                 </RoleGuard>
               }
@@ -246,10 +249,8 @@ function App() {
               }
             />
 
-            {/* Redirect /dashboard based on role */}
+            {/* ================= REDIRECT ROUTES ================= */}
             <Route path="/dashboard" element={<RoleBasedRedirect />} />
-
-            {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

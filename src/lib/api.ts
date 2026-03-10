@@ -79,17 +79,13 @@ export const studentAPI = {
 
 // ================= VERIFICATION API ENDPOINTS =================
 export const verificationAPI = {
-  verifyByShareId: (shareId: string) => api.get(`/verify/${shareId}`),
-  verifyDirect: (credentialId: string) =>
-    api.get(`/verify/direct/${credentialId}`),
-  getPreview: (credentialId: string) =>
-    api.get(`/verify/preview/${credentialId}`),
-  getBlockchainStatus: () => api.get("/verify/status"),
+  verifyByShareId: (shareId: string) => api.get(`/verify/share/${shareId}`),
   verifyByHash: (hash: string) => api.get(`/verify/hash/${hash}`),
   verifyDocument: (formData: FormData) =>
     api.post("/verify/document", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
+  getBlockchainStatus: () => api.get("/verify/status"),
 };
 
 // ================= CREDENTIAL API ENDPOINTS (ALIAS FOR STUDENTAPI) =================
@@ -112,10 +108,8 @@ export const institutionAPI = {
   getIssuedCredentials: () => api.get("/institution/credentials"),
   getCredentialById: (id: string) => api.get(`/institution/credentials/${id}`),
   issueCredential: (data: any) => api.post("/institution/credentials", data),
-  updateCredential: (
-    id: string,
-    data: any, // NEW: Update credential
-  ) => api.put(`/institution/credentials/${id}`, data),
+  updateCredential: (id: string, data: any) =>
+    api.put(`/institution/credentials/${id}`, data),
   revokeCredential: (id: string, reason?: string) =>
     api.put(`/institution/credentials/${id}/revoke`, { reason }),
 

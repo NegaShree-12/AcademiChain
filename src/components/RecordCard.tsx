@@ -1,8 +1,11 @@
 // frontend/src/components/RecordCard.tsx
+
+import { useState } from "react";
 import { Credential } from "@/types/credential";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ShareCredentialModal } from "./ShareCredential";
 import {
   GraduationCap,
   Award,
@@ -71,6 +74,9 @@ export function RecordCard({
   onShare,
   onVerify,
 }: RecordCardProps) {
+  // Add state for share modal
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+
   // Safe access with fallbacks
   const credentialType = credential?.type || "default";
   const credentialStatus = credential?.status || "default";
@@ -103,90 +109,118 @@ export function RecordCard({
     return `#${blockNumber.toLocaleString()}`;
   };
 
-  return (
-    <Card className="group card-hover overflow-hidden border-border/50 bg-card">
-      <CardContent className="p-0">
-        {/* Header with type icon */}
-        <div className="relative p-6 pb-4">
-          <div className="flex items-start justify-between">
-            <div
-              className={cn(
-                "rounded-xl p-3",
-                typeColors[credentialType] || typeColors.default,
-              )}
-            >
-              <Icon className="h-6 w-6" />
-            </div>
-            <Badge variant="outline" className={cn("gap-1", status.className)}>
-              <StatusIcon className="h-3 w-3" />
-              {status.label}
-            </Badge>
-          </div>
+  // Share handler
+  const handleShare = () => {
+    setShareModalOpen(true);
+    if (onShare) onShare();
+  };
 
-          {/* Title and institution */}
-          <div className="mt-4 space-y-1">
-            <h3 className="font-semibold text-lg leading-tight line-clamp-2">
-              {credential?.title || "Untitled Credential"}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {credential?.institution || "Unknown Institution"}
+  return (
+    <>
+      <Card className="group card-hover overflow-hidden border-border/50 bg-card">
+        <CardContent className="p-0">
+          {/* Header with type icon */}
+          <div className="relative p-6 pb-4">
+            <div className="flex items-start justify-between">
+              <div
+                className={cn(
+                  "rounded-xl p-3",
+                  typeColors[credentialType] || typeColors.default,
+                )}
+              >
+                <Icon className="h-6 w-6" />
+              </div>
+              <Badge
+                variant="outline"
+                className={cn("gap-1", status.className)}
+              >
+                <StatusIcon className="h-3 w-3" />
+                {status.label}
+              </Badge>
+            </div>
+
+            {/* Title and institution */}
+            <div className="mt-4 space-y-1">
+              <h3 className="font-semibold text-lg leading-tight line-clamp-2">
+                {credential?.title || "Untitled Credential"}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {credential?.institution || "Unknown Institution"}
+              </p>
+            </div>
+
+            {/* Issue date */}
+            <p className="mt-2 text-xs text-muted-foreground">
+              Issued on {formatDate(credential?.issueDate)}
             </p>
           </div>
 
-          {/* Issue date */}
-          <p className="mt-2 text-xs text-muted-foreground">
-            Issued on {formatDate(credential?.issueDate)}
-          </p>
-        </div>
-
-        {/* Transaction info */}
-        <div className="border-t border-border/50 bg-muted/30 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Transaction Hash</p>
-              <p className="font-mono text-xs text-hash">
-                {truncateHash(credential?.txHash)}
-              </p>
-            </div>
-            <div className="text-right space-y-1">
-              <p className="text-xs text-muted-foreground">Block</p>
-              <p className="font-mono text-xs text-hash">
-                {formatBlockNumber(credential?.blockNumber)}
-              </p>
+          {/* Transaction info */}
+          <div className="border-t border-border/50 bg-muted/30 px-6 py-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  Transaction Hash
+                </p>
+                <p className="font-mono text-xs text-hash">
+                  {truncateHash(credential?.txHash)}
+                </p>
+              </div>
+              <div className="text-right space-y-1">
+                <p className="text-xs text-muted-foreground">Block</p>
+                <p className="font-mono text-xs text-hash">
+                  {formatBlockNumber(credential?.blockNumber)}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Actions - Updated with Share button */}
-        <div className="flex border-t border-border/50">
-          <Button
-            variant="ghost"
-            className="flex-1 rounded-none h-12 gap-2 text-muted-foreground hover:text-foreground"
-            onClick={onView}
-          >
-            <Eye className="h-4 w-4" />
-            View
-          </Button>
-          <div className="w-px bg-border/50" />
-          <Button
-            variant="ghost"
-            className="flex-1 rounded-none h-12 gap-2 text-muted-foreground hover:text-foreground"
-            onClick={onShare}
-          >
-            <Share2 className="h-4 w-4" />
-            Share
-          </Button>
-          <div className="w-px bg-border/50" />
-          <Button
-            variant="ghost"
-            className="flex-1 rounded-none h-12 gap-2 text-muted-foreground hover:text-foreground"
-            onClick={onVerify}
-          >
-            <ExternalLink className="h-4 w-4" />
-            Verify
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          {/* Actions */}
+          <div className="flex border-t border-border/50">
+            <Button
+              variant="ghost"
+              className="flex-1 rounded-none h-12 gap-2 text-muted-foreground hover:text-foreground"
+              onClick={onView}
+            >
+              <Eye className="h-4 w-4" />
+              View
+            </Button>
+            <div className="w-px bg-border/50" />
+            <Button
+              variant="ghost"
+              className="flex-1 rounded-none h-12 gap-2 text-muted-foreground hover:text-foreground"
+              onClick={handleShare}
+            >
+              <Share2 className="h-4 w-4" />
+              Share
+            </Button>
+            <div className="w-px bg-border/50" />
+            <Button
+              variant="ghost"
+              className="flex-1 rounded-none h-12 gap-2 text-muted-foreground hover:text-foreground"
+              onClick={onVerify}
+            >
+              <ExternalLink className="h-4 w-4" />
+              Verify
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Share Modal */}
+      <ShareCredentialModal
+        open={shareModalOpen}
+        onOpenChange={setShareModalOpen}
+        credential={{
+          id: credential?.id || "",
+          title: credential?.title || "Untitled Credential",
+          studentName: credential?.studentName || "Student",
+          institutionName: credential?.institution || "Unknown Institution",
+          issueDate: credential?.issueDate || new Date().toISOString(),
+          credentialType: credential?.type || "certificate",
+          blockchainTxHash: credential?.txHash || "",
+        }}
+      />
+    </>
   );
 }
