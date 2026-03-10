@@ -1,4 +1,5 @@
 // frontend/src/pages/institution/IssuedCredentialsPage.tsx
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
   Building,
   Loader2,
   RefreshCw,
+  Edit,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -38,7 +40,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { institutionAPI } from "@/lib/api";
 
@@ -55,6 +66,13 @@ interface Credential {
   institutionName: string;
   description?: string;
   isRevoked?: boolean;
+  metadata?: {
+    grade?: string;
+    gpa?: number;
+    credits?: number;
+    program?: string;
+    major?: string;
+  };
 }
 
 export function IssuedCredentialsPage() {
@@ -67,6 +85,13 @@ export function IssuedCredentialsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
+
+  // Edit dialog states
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [selectedCredential, setSelectedCredential] =
+    useState<Credential | null>(null);
+  const [editStatus, setEditStatus] = useState<string>("verified");
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Load credentials from API
   useEffect(() => {
@@ -96,6 +121,7 @@ export function IssuedCredentialsPage() {
 
       console.log(`✅ Found ${credentialsList.length} credentials`);
       setCredentials(credentialsList);
+      setFilteredCredentials(credentialsList);
     } catch (error) {
       console.error("❌ Failed to fetch credentials:", error);
       toast({
@@ -104,6 +130,7 @@ export function IssuedCredentialsPage() {
         variant: "destructive",
       });
       setCredentials([]);
+      setFilteredCredentials([]);
     } finally {
       setIsLoading(false);
     }
@@ -147,6 +174,52 @@ export function IssuedCredentialsPage() {
     });
   };
 
+  const handleEditClick = (credential: Credential) => {
+    setSelectedCredential(credential);
+    setEditStatus(credential.blockchainStatus);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateCredential = async () => {
+    if (!selectedCredential) return;
+
+    try {
+      setIsUpdating(true);
+
+      const response = await institutionAPI.updateCredential(
+        selectedCredential.credentialId,
+        { blockchainStatus: editStatus },
+      );
+
+      if (response.data?.success) {
+        toast({
+          title: "Success",
+          description: "Credential status updated successfully",
+        });
+
+        // Update local state
+        setCredentials((prev) =>
+          prev.map((cred) =>
+            cred.credentialId === selectedCredential.credentialId
+              ? { ...cred, blockchainStatus: editStatus as any }
+              : cred,
+          ),
+        );
+
+        setShowEditDialog(false);
+      }
+    } catch (error) {
+      console.error("Error updating credential:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update credential",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const config = {
       verified: {
@@ -165,7 +238,7 @@ export function IssuedCredentialsPage() {
         className: "bg-destructive/10 text-destructive border-destructive/20",
       },
     };
-    return config[status] || config.pending;
+    return config[status as keyof typeof config] || config.pending;
   };
 
   const getTypeIcon = (type: string) => {
@@ -175,7 +248,7 @@ export function IssuedCredentialsPage() {
       transcript: FileText,
       diploma: Award,
     };
-    return icons[type] || FileText;
+    return icons[type as keyof typeof icons] || FileText;
   };
 
   const downloadCredential = (credential: Credential) => {
@@ -505,8 +578,18 @@ export function IssuedCredentialsPage() {
                             size="icon"
                             className="h-8 w-8"
                             onClick={() => downloadCredential(credential)}
+                            title="Download"
                           >
                             <Download className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                            onClick={() => handleEditClick(credential)}
+                            title="Edit Status"
+                          >
+                            <Edit className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -518,6 +601,95 @@ export function IssuedCredentialsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Edit Credential Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Credential Status</DialogTitle>
+            <DialogDescription>
+              Update the blockchain verification status for this credential.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedCredential && (
+            <div className="space-y-4 py-4">
+              <div className="p-4 rounded-lg bg-muted border">
+                <p className="font-medium">{selectedCredential.title}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Student: {selectedCredential.studentName}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  ID: {selectedCredential.credentialId}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status">Blockchain Status</Label>
+                <Select value={editStatus} onValueChange={setEditStatus}>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="verified">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        Verified
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="pending">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-yellow-600" />
+                        Pending
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="failed">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        Failed
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <p className="text-xs text-primary">
+                  Changing status to "Verified" means the credential is
+                  confirmed on the blockchain.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowEditDialog(false)}
+              disabled={isUpdating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateCredential}
+              disabled={isUpdating}
+              className="gap-2"
+            >
+              {isUpdating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Update Status
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

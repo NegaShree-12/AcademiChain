@@ -1,3 +1,4 @@
+// frontend/src/components/RecordCard.tsx
 import { Credential } from "@/types/credential";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ interface RecordCardProps {
   credential: Credential;
   onView?: () => void;
   onShare?: () => void;
+  onVerify?: () => void;
 }
 
 // Add default/fallback values
@@ -29,7 +31,7 @@ const typeIcons = {
   certificate: Award,
   transcript: FileText,
   diploma: ScrollText,
-  default: File, // Default icon for unknown types
+  default: File,
 };
 
 const typeColors = {
@@ -37,7 +39,7 @@ const typeColors = {
   certificate: "bg-amber-500/10 text-amber-600",
   transcript: "bg-emerald-500/10 text-emerald-600",
   diploma: "bg-purple-500/10 text-purple-600",
-  default: "bg-muted text-muted-foreground", // Default color for unknown types
+  default: "bg-muted text-muted-foreground",
 };
 
 const statusConfig = {
@@ -57,14 +59,18 @@ const statusConfig = {
     className: "bg-destructive/10 text-destructive border-destructive/20",
   },
   default: {
-    // Default status for unknown values
     icon: AlertCircle,
     label: "Unknown",
     className: "bg-muted text-muted-foreground border-border",
   },
 };
 
-export function RecordCard({ credential, onView, onShare }: RecordCardProps) {
+export function RecordCard({
+  credential,
+  onView,
+  onShare,
+  onVerify,
+}: RecordCardProps) {
   // Safe access with fallbacks
   const credentialType = credential?.type || "default";
   const credentialStatus = credential?.status || "default";
@@ -151,7 +157,7 @@ export function RecordCard({ credential, onView, onShare }: RecordCardProps) {
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Actions - Updated with Share button */}
         <div className="flex border-t border-border/50">
           <Button
             variant="ghost"
@@ -174,6 +180,7 @@ export function RecordCard({ credential, onView, onShare }: RecordCardProps) {
           <Button
             variant="ghost"
             className="flex-1 rounded-none h-12 gap-2 text-muted-foreground hover:text-foreground"
+            onClick={onVerify}
           >
             <ExternalLink className="h-4 w-4" />
             Verify

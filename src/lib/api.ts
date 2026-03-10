@@ -1,4 +1,5 @@
 // frontend/src/lib/api.ts
+
 import axios from "axios";
 
 const API_BASE_URL =
@@ -111,6 +112,10 @@ export const institutionAPI = {
   getIssuedCredentials: () => api.get("/institution/credentials"),
   getCredentialById: (id: string) => api.get(`/institution/credentials/${id}`),
   issueCredential: (data: any) => api.post("/institution/credentials", data),
+  updateCredential: (
+    id: string,
+    data: any, // NEW: Update credential
+  ) => api.put(`/institution/credentials/${id}`, data),
   revokeCredential: (id: string, reason?: string) =>
     api.put(`/institution/credentials/${id}/revoke`, { reason }),
 

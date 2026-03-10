@@ -1,3 +1,4 @@
+// frontend/src/hooks/useMetaMask.ts
 import { useState, useEffect } from "react";
 import { BrowserProvider } from "ethers";
 
@@ -16,7 +17,8 @@ export function useMetaMask() {
 
   useEffect(() => {
     const checkMetaMask = () => {
-      const hasMetaMask = typeof window.ethereum !== "undefined";
+      const hasMetaMask =
+        typeof window.ethereum !== "undefined" && window.ethereum.isMetaMask;
       setIsInstalled(hasMetaMask);
     };
 
@@ -26,6 +28,17 @@ export function useMetaMask() {
     if (window.ethereum) {
       window.ethereum.on("accountsChanged", handleAccountsChanged);
       window.ethereum.on("chainChanged", handleChainChanged);
+
+      // Check if already connected
+      window.ethereum
+        .request({ method: "eth_accounts" })
+        .then((accounts: string[]) => {
+          if (accounts.length > 0) {
+            setAccount(accounts[0].toLowerCase());
+            setHasAttemptedConnection(true);
+          }
+        })
+        .catch(console.error);
     }
 
     return () => {
@@ -47,8 +60,8 @@ export function useMetaMask() {
     }
   };
 
-  const handleChainChanged = () => {
-    window.location.reload();
+  const handleChainChanged = (chainId: string) => {
+    setChainId(parseInt(chainId, 16));
   };
 
   const connect = async () => {
@@ -81,6 +94,12 @@ export function useMetaMask() {
       }
     } catch (err: any) {
       console.error("❌ Connection error:", err);
+
+      // Handle user rejection specifically
+      if (err.code === 4001) {
+        throw new Error("User rejected the connection request");
+      }
+
       throw err;
     } finally {
       setIsConnecting(false);
@@ -98,7 +117,7 @@ export function useMetaMask() {
     account,
     chainId,
     isConnecting,
-    isConnected: !!account && hasAttemptedConnection, // ✅ Only true if user clicked connect
+    isConnected: !!account && hasAttemptedConnection,
     connect,
     disconnect,
   };

@@ -1,4 +1,5 @@
 // frontend/src/pages/institution/StudentPage.tsx
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -102,7 +103,6 @@ export function StudentsPage() {
     filterStudents();
   }, [students, searchQuery]);
 
-  // In your fetchStudents function, update the data transformation:
   const fetchStudents = async () => {
     try {
       setIsLoading(true);
@@ -125,6 +125,7 @@ export function StudentsPage() {
 
       console.log("📋 Student list:", studentList);
       setStudents(studentList);
+      setFilteredStudents(studentList);
     } catch (error) {
       console.error("❌ Failed to fetch students:", error);
       toast({
@@ -225,6 +226,8 @@ export function StudentsPage() {
     }
   };
 
+  // frontend/src/pages/institution/StudentPage.tsx - Update handleEditStudent
+
   const handleEditStudent = async () => {
     if (!selectedStudent) return;
 
@@ -236,6 +239,8 @@ export function StudentsPage() {
         email: selectedStudent.email,
         program: selectedStudent.program,
         status: selectedStudent.status,
+        walletAddress: selectedStudent.walletAddress || "",
+        phone: selectedStudent.phone || "",
       };
 
       console.log("📤 Updating student:", selectedStudent._id, updateData);
@@ -244,10 +249,56 @@ export function StudentsPage() {
         selectedStudent._id,
         updateData,
       );
-      console.log("✅ Student updated:", response.data);
 
-      // Refresh the student list
-      await fetchStudents();
+      console.log("✅ Student updated response:", response);
+      console.log("✅ Response data:", response.data);
+
+      // Get the updated student data from response
+      // The API returns { success: true, data: updatedStudent, message: "..." }
+      const updatedStudentData = response.data?.data;
+
+      if (!updatedStudentData) {
+        throw new Error("No data returned from server");
+      }
+
+      console.log("✅ Updated student data:", updatedStudentData);
+
+      // Update the students state immediately
+      setStudents((prevStudents) =>
+        prevStudents.map((student) =>
+          student._id === selectedStudent._id
+            ? {
+                ...student,
+                ...updatedStudentData,
+                // Ensure all fields are properly mapped with fallbacks
+                program: updatedStudentData.program || student.program,
+                status: updatedStudentData.status || student.status,
+                name: updatedStudentData.name || student.name,
+                email: updatedStudentData.email || student.email,
+                walletAddress:
+                  updatedStudentData.walletAddress || student.walletAddress,
+              }
+            : student,
+        ),
+      );
+
+      // Also update filtered students
+      setFilteredStudents((prev) =>
+        prev.map((student) =>
+          student._id === selectedStudent._id
+            ? {
+                ...student,
+                ...updatedStudentData,
+                program: updatedStudentData.program || student.program,
+                status: updatedStudentData.status || student.status,
+                name: updatedStudentData.name || student.name,
+                email: updatedStudentData.email || student.email,
+                walletAddress:
+                  updatedStudentData.walletAddress || student.walletAddress,
+              }
+            : student,
+        ),
+      );
 
       setShowEditDialog(false);
       setSelectedStudent(null);
@@ -261,14 +312,15 @@ export function StudentsPage() {
       toast({
         title: "Error",
         description:
-          error.response?.data?.message || "Failed to update student",
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to update student",
         variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
-
   const handleDeleteStudent = async (id: string) => {
     if (
       !confirm(
@@ -284,8 +336,15 @@ export function StudentsPage() {
       await institutionAPI.deleteStudent(id);
       console.log("✅ Student deleted");
 
-      // Refresh the student list
-      await fetchStudents();
+      // Remove student from state
+      setStudents((prevStudents) =>
+        prevStudents.filter(
+          (student) => student._id !== id && student.id !== id,
+        ),
+      );
+      setFilteredStudents((prev) =>
+        prev.filter((student) => student._id !== id && student.id !== id),
+      );
 
       toast({
         title: "Success",

@@ -1,5 +1,4 @@
-// frontend/src/pages/verifier/VerifierDashboard.tsx
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,52 +14,21 @@ import {
   QrCode,
   Hash,
   Camera,
-  X,
   ExternalLink,
+  Award,
+  Calendar,
+  User,
+  Building,
   Shield,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export function VerifierDashboard() {
-  const [activeTab, setActiveTab] = useState("upload");
+  const [activeTab, setActiveTab] = useState("hash");
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [hashInput, setHashInput] = useState("");
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [cameraActive, setCameraActive] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
-
-  // Handle file upload verification
-  const handleFileUpload = async (file: File) => {
-    if (!file) return;
-
-    setIsVerifying(true);
-    setUploadedFile(file);
-    setVerificationResult(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("document", file);
-
-      // REAL API CALL - Not mock
-      const response = await verificationAPI.verifyDocument(formData);
-      setVerificationResult(response.data);
-
-      toast({
-        title: response.data.isValid ? "✅ Verified" : "❌ Verification Failed",
-        description: response.data.message,
-        variant: response.data.isValid ? "default" : "destructive",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to verify document",
-        variant: "destructive",
-      });
-    } finally {
-      setIsVerifying(false);
-    }
-  };
 
   // Handle hash verification
   const verifyByHash = async () => {
@@ -77,63 +45,26 @@ export function VerifierDashboard() {
     setVerificationResult(null);
 
     try {
-      // REAL API CALL
+      console.log("🔍 Verifying hash:", hashInput);
       const response = await verificationAPI.verifyByHash(hashInput);
+      console.log("✅ Verification response:", response.data);
+
       setVerificationResult(response.data);
 
       toast({
         title: response.data.isValid ? "✅ Verified" : "❌ Invalid",
         description: response.data.message,
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Verification error:", error);
       toast({
         title: "Error",
-        description: "Failed to verify hash",
+        description: error.response?.data?.message || "Failed to verify hash",
         variant: "destructive",
       });
     } finally {
       setIsVerifying(false);
     }
-  };
-
-  // Handle QR code scanning
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setCameraActive(true);
-      }
-    } catch (error) {
-      toast({
-        title: "Camera Error",
-        description: "Could not access camera",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setCameraActive(false);
-  };
-
-  const captureQR = async () => {
-    // This would use a QR scanner library like jsQR
-    // For now, prompt user to enter the data manually
-    const qrData = prompt("Enter QR code data:");
-    if (qrData) {
-      setHashInput(qrData);
-      verifyByHash();
-    }
-    stopCamera();
   };
 
   return (
@@ -155,11 +86,11 @@ export function VerifierDashboard() {
               <CardContent className="p-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="upload" className="gap-2">
+                    <TabsTrigger value="upload" className="gap-2" disabled>
                       <Upload className="h-4 w-4" />
                       Document
                     </TabsTrigger>
-                    <TabsTrigger value="qr" className="gap-2">
+                    <TabsTrigger value="qr" className="gap-2" disabled>
                       <QrCode className="h-4 w-4" />
                       QR Code
                     </TabsTrigger>
@@ -168,99 +99,6 @@ export function VerifierDashboard() {
                       Hash
                     </TabsTrigger>
                   </TabsList>
-
-                  {/* Upload Tab */}
-                  <TabsContent value="upload" className="mt-6">
-                    <div className="space-y-4">
-                      <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center">
-                        <input
-                          type="file"
-                          id="document-upload"
-                          className="hidden"
-                          accept=".pdf,.png,.jpg,.jpeg"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleFileUpload(file);
-                          }}
-                          disabled={isVerifying}
-                        />
-                        <label
-                          htmlFor="document-upload"
-                          className="cursor-pointer"
-                        >
-                          {isVerifying ? (
-                            <div className="space-y-4">
-                              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                              <p>Verifying document on blockchain...</p>
-                            </div>
-                          ) : (
-                            <>
-                              <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                              <p className="text-muted-foreground mb-2">
-                                Click to upload or drag and drop
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                PDF, PNG, JPG up to 10MB
-                              </p>
-                              <Button variant="outline" className="mt-4">
-                                Choose File
-                              </Button>
-                            </>
-                          )}
-                        </label>
-                      </div>
-
-                      {uploadedFile && (
-                        <div className="p-3 bg-muted rounded-lg">
-                          <p className="text-sm font-medium">
-                            {uploadedFile.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {(uploadedFile.size / 1024).toFixed(2)} KB
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-
-                  {/* QR Tab */}
-                  <TabsContent value="qr" className="mt-6">
-                    <div className="space-y-4">
-                      {!cameraActive ? (
-                        <div className="text-center">
-                          <div className="border-2 border-dashed border-border rounded-2xl p-12 mb-4">
-                            <QrCode className="h-16 w-16 text-muted-foreground mx-auto" />
-                          </div>
-                          <Button onClick={startCamera} className="gap-2">
-                            <Camera className="h-4 w-4" />
-                            Start Camera
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="relative">
-                            <video
-                              ref={videoRef}
-                              autoPlay
-                              playsInline
-                              className="w-full rounded-lg border-2 border-primary"
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-48 h-48 border-4 border-primary/50 rounded-lg" />
-                            </div>
-                          </div>
-                          <div className="flex gap-3">
-                            <Button onClick={captureQR} className="flex-1">
-                              Capture QR
-                            </Button>
-                            <Button variant="outline" onClick={stopCamera}>
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
 
                   {/* Hash Tab */}
                   <TabsContent value="hash" className="mt-6">
@@ -341,43 +179,109 @@ export function VerifierDashboard() {
                   {verificationResult.isValid &&
                     verificationResult.credential && (
                       <div className="space-y-4">
+                        {/* Credential Details */}
                         <div className="p-4 rounded-lg bg-muted">
-                          <h4 className="font-semibold mb-2">
-                            {verificationResult.credential.title}
-                          </h4>
-                          <div className="space-y-2 text-sm">
-                            <p>
-                              <span className="text-muted-foreground">
-                                Student:
-                              </span>{" "}
-                              {verificationResult.credential.studentName}
-                            </p>
-                            <p>
-                              <span className="text-muted-foreground">
-                                Institution:
-                              </span>{" "}
-                              {verificationResult.credential.institutionName}
-                            </p>
-                            <p>
-                              <span className="text-muted-foreground">
-                                Issue Date:
-                              </span>{" "}
-                              {new Date(
-                                verificationResult.credential.issueDate,
-                              ).toLocaleDateString()}
-                            </p>
+                          <div className="flex items-center gap-2 mb-3">
+                            <Award className="h-5 w-5 text-primary" />
+                            <h4 className="font-semibold">
+                              Credential Details
+                            </h4>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-sm font-medium">
+                                {verificationResult.credential.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Title
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-sm">
+                                  {verificationResult.credential.studentName}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Student
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm">
+                                  {
+                                    verificationResult.credential
+                                      .institutionName
+                                  }
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Institution
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-sm capitalize">
+                                  {verificationResult.credential.credentialType}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Type
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm">
+                                  {new Date(
+                                    verificationResult.credential.issueDate,
+                                  ).toLocaleDateString()}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Issue Date
+                                </p>
+                              </div>
+                            </div>
+
+                            {verificationResult.credential.metadata?.grade && (
+                              <div>
+                                <p className="text-sm">
+                                  Grade:{" "}
+                                  {verificationResult.credential.metadata.grade}
+                                </p>
+                              </div>
+                            )}
+
+                            {verificationResult.credential.description && (
+                              <div className="pt-2 border-t">
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  Description
+                                </p>
+                                <p className="text-sm">
+                                  {verificationResult.credential.description}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
 
+                        {/* Blockchain Proof */}
                         <div className="p-4 rounded-lg border border-border/50">
                           <p className="text-sm font-medium mb-2">
                             Blockchain Proof
                           </p>
                           <div className="font-mono text-xs break-all bg-muted p-2 rounded">
-                            {verificationResult.verification?.blockchainTxHash}
+                            {verificationResult.verification
+                              ?.blockchainTxHash || hashInput}
                           </div>
+                          {verificationResult.verification?.blockNumber && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Block:{" "}
+                              {verificationResult.verification.blockNumber} |
+                              Confirmations:{" "}
+                              {verificationResult.verification.confirmations}
+                            </p>
+                          )}
                           <a
-                            href={`https://sepolia.etherscan.io/tx/${verificationResult.verification?.blockchainTxHash}`}
+                            href={`https://sepolia.etherscan.io/tx/${verificationResult.verification?.blockchainTxHash || hashInput}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm text-primary hover:underline mt-2 inline-flex items-center gap-1"
