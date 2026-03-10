@@ -67,6 +67,8 @@ export function ShareCredentialModal({
   const [qrValue, setQrValue] = useState("");
 
   // Generate share link via API
+  // In ShareCredentialModal.tsx - update the generateShareLink function
+
   const generateShareLink = async () => {
     setIsGenerating(true);
     try {
@@ -79,6 +81,7 @@ export function ShareCredentialModal({
 
       console.log("Share link response:", response.data);
 
+      // This should return a URL with the shareId that maps to this specific credential
       const shareUrl = response.data.data.shareUrl;
       setShareLink(shareUrl);
       setQrValue(shareUrl);
@@ -99,7 +102,6 @@ export function ShareCredentialModal({
       setIsGenerating(false);
     }
   };
-
   // Copy to clipboard
   const copyToClipboard = (text: string, message: string) => {
     navigator.clipboard.writeText(text);

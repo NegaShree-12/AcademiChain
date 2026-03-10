@@ -1,7 +1,7 @@
 // frontend/src/pages/Verify.tsx
 
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +24,8 @@ import {
 
 export default function Verify() {
   const { hash } = useParams();
+  const [searchParams] = useSearchParams();
+  const shareId = searchParams.get("shareId");
   const { toast } = useToast();
 
   const [isVerifying, setIsVerifying] = useState(false);
@@ -32,11 +34,16 @@ export default function Verify() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Auto-verify if hash is in URL (from /verify/:hash)
     if (hash) {
       setHashInput(hash);
       verifyByHash();
     }
-  }, [hash]);
+    // Auto-verify if shareId is in URL (from /verify?shareId=xxx)
+    else if (shareId) {
+      verifyByShareId();
+    }
+  }, [hash, shareId]);
 
   const verifyByHash = async () => {
     if (!hashInput.trim()) {
@@ -69,6 +76,39 @@ export default function Verify() {
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to verify hash",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const verifyByShareId = async () => {
+    if (!shareId) return;
+
+    setIsVerifying(true);
+    setVerificationResult(null);
+    setError(null);
+
+    try {
+      console.log("🔍 Verifying share ID:", shareId);
+      const response = await verificationAPI.verifyByShareId(shareId);
+      console.log("✅ Verification response:", response.data);
+
+      setVerificationResult(response.data);
+      setHashInput(response.data.verification?.blockchainTxHash || shareId);
+
+      toast({
+        title: response.data.isValid ? "✅ Verified" : "❌ Invalid",
+        description: response.data.message,
+      });
+    } catch (error: any) {
+      console.error("Verification error:", error);
+      setError(error.response?.data?.message || "Failed to verify share link");
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to verify share link",
         variant: "destructive",
       });
     } finally {
@@ -166,6 +206,7 @@ export default function Verify() {
                     onClick={() => {
                       setError(null);
                       setVerificationResult(null);
+                      setHashInput("");
                     }}
                   >
                     Try Again
@@ -330,6 +371,7 @@ export default function Verify() {
                     onClick={() => {
                       setVerificationResult(null);
                       setError(null);
+                      setHashInput("");
                     }}
                   >
                     Verify Another

@@ -23,7 +23,6 @@ import {
   Shield,
   Copy,
   Camera,
-  FileText,
   X,
 } from "lucide-react";
 import { QRCodeReader } from "@/components/QRCodeReader";
@@ -31,7 +30,7 @@ import { QRCodeReader } from "@/components/QRCodeReader";
 export function VerifierVerify() {
   const { toast } = useToast();
 
-  const [activeTab, setActiveTab] = useState("hash");
+  const [activeTab, setActiveTab] = useState("qr");
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [hashInput, setHashInput] = useState("");
@@ -42,7 +41,7 @@ export function VerifierVerify() {
   const [showScanner, setShowScanner] = useState(false);
   const scannerRef = useRef<HTMLDivElement>(null);
 
-  // File upload state
+  // File upload state (for QR upload only)
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -148,39 +147,6 @@ export function VerifierVerify() {
     setShowScanner(false);
   };
 
-  const verifyDocument = async () => {
-    if (!selectedFile) return;
-
-    setIsVerifying(true);
-    setError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("document", selectedFile);
-
-      const response = await verificationAPI.verifyDocument(formData);
-      console.log("📄 Document verification response:", response.data);
-
-      setVerificationResult(response.data);
-
-      toast({
-        title: response.data.isValid ? "✅ Verified" : "❌ Invalid",
-        description: response.data.message,
-      });
-    } catch (error: any) {
-      console.error("Document verification error:", error);
-      setError(error.response?.data?.message || "Failed to verify document");
-      toast({
-        title: "Error",
-        description:
-          error.response?.data?.message || "Failed to verify document",
-        variant: "destructive",
-      });
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
   const clearFile = () => {
     setSelectedFile(null);
     setFilePreview(null);
@@ -216,11 +182,7 @@ export function VerifierVerify() {
                 onValueChange={setActiveTab}
                 className="w-full"
               >
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="upload" className="gap-2">
-                    <Upload className="h-4 w-4" />
-                    Document
-                  </TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="qr" className="gap-2">
                     <QrCode className="h-4 w-4" />
                     QR Code
@@ -230,97 +192,6 @@ export function VerifierVerify() {
                     Hash
                   </TabsTrigger>
                 </TabsList>
-
-                {/* Document Upload Tab */}
-                <TabsContent value="upload" className="mt-6">
-                  <div className="space-y-4">
-                    {!selectedFile ? (
-                      <div
-                        className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setSelectedFile(file);
-                              // Create preview for images
-                              if (file.type.startsWith("image/")) {
-                                const reader = new FileReader();
-                                reader.onload = (e) => {
-                                  setFilePreview(e.target?.result as string);
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }
-                          }}
-                          accept=".pdf,.png,.jpg,.jpeg,.json"
-                          className="hidden"
-                        />
-                        <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground mb-2">
-                          Click to upload or drag and drop
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          PDF, PNG, JPG, or JSON (max 10MB)
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="border rounded-lg p-4 bg-muted/30">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <FileText className="h-8 w-8 text-primary" />
-                              <div>
-                                <p className="font-medium">
-                                  {selectedFile.name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {(selectedFile.size / 1024).toFixed(2)} KB
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={clearFile}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          {filePreview && (
-                            <div className="mt-4 flex justify-center">
-                              <img
-                                src={filePreview}
-                                alt="Preview"
-                                className="max-h-48 rounded-lg border"
-                              />
-                            </div>
-                          )}
-                        </div>
-                        <Button
-                          onClick={verifyDocument}
-                          disabled={isVerifying}
-                          className="w-full gap-2"
-                        >
-                          {isVerifying ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Verifying...
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="h-4 w-4" />
-                              Verify Document
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
 
                 {/* QR Code Tab */}
                 <TabsContent value="qr" className="mt-6">
