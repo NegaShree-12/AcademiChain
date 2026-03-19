@@ -38,9 +38,12 @@ export function WalletButton() {
   }, [isConnected, account, isConnecting, isLoggingIn, user, roleSelectorOpen]);
 
   // 🔥 FIX: Auto-login when wallet is connected but no user exists (with detailed logging)
+  // 🔥 FIX: Auto-login when wallet is connected but no user exists (with detailed logging)
   useEffect(() => {
+    console.log("🟡 Auto-login useEffect running");
+
     const autoLogin = async () => {
-      console.log("🟡 Auto-login check:", {
+      console.log("🟡 Auto-login check at:", new Date().toISOString(), {
         isConnected,
         account,
         hasUser: !!user,
@@ -50,7 +53,10 @@ export function WalletButton() {
 
       // If wallet is connected but no user exists and not already logging in
       if (isConnected && account && !user && !isLoggingIn) {
-        console.log("🟡 Auto-login triggered - wallet connected but no user");
+        console.log("🟡 ✅ CONDITIONS MET - Auto-login triggered!");
+        console.log("🟡 Wallet:", account);
+        console.log("🟡 User null?:", !user);
+        console.log("🟡 Already logging in?:", isLoggingIn);
 
         // Show toast to inform user
         toast({
@@ -60,10 +66,32 @@ export function WalletButton() {
 
         // Trigger the login flow
         await handleConnect();
+      } else {
+        console.log("🟡 ❌ Conditions not met:", {
+          reason: !isConnected
+            ? "not connected"
+            : !account
+              ? "no account"
+              : !!user
+                ? "user exists"
+                : isLoggingIn
+                  ? "already logging in"
+                  : "unknown",
+        });
       }
     };
 
     autoLogin();
+  }, [isConnected, account, user, isLoggingIn]);
+
+  // Add this right after your state declarations (around line 20)
+  useEffect(() => {
+    console.log("🔄 Dependencies changed:", {
+      isConnected,
+      account,
+      user: user ? "exists" : "null",
+      isLoggingIn,
+    });
   }, [isConnected, account, user, isLoggingIn]);
 
   // 🔥 FIX: Auto-open role selector when user has no role
