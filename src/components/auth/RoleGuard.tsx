@@ -1,6 +1,6 @@
 // frontend/src/components/auth/RoleGuard.tsx
-import React from "react";
-import { Navigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface RoleGuardProps {
@@ -15,6 +15,14 @@ export function RoleGuard({
   redirectTo = "/",
 }: RoleGuardProps) {
   const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if we're in a deployment environment
+    if (user?.role && !isLoading) {
+      console.log(`✅ User has role: ${user.role}, checking access...`);
+    }
+  }, [user, isLoading]);
 
   if (isLoading) {
     return (
@@ -36,7 +44,7 @@ export function RoleGuard({
     return <Navigate to="/" replace />;
   }
 
-  // Check if user has required role (allow multiple roles)
+  // Check if user has required role
   const hasRequiredRole = allowedRoles.some(
     (role) =>
       user.role === role ||
