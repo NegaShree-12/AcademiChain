@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Wallet, Loader2, CheckCircle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMetaMask } from "@/hooks/useMetaMask";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +24,9 @@ export function WalletButton() {
   const [roleSelectorOpen, setRoleSelectorOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  // Use a ref to track if auto-login has been attempted
+  const autoLoginAttempted = useRef(false);
+
   // Debug logging
   useEffect(() => {
     console.log("🔵 WalletButton state:", {
@@ -37,61 +40,31 @@ export function WalletButton() {
     });
   }, [isConnected, account, isConnecting, isLoggingIn, user, roleSelectorOpen]);
 
-  // 🔥 FIX: Auto-login when wallet is connected but no user exists (with detailed logging)
-  // 🔥 FIX: Auto-login when wallet is connected but no user exists (with detailed logging)
+  // 🔥 CRITICAL FIX: Watch for connection state changes and trigger login
   useEffect(() => {
-    console.log("🟡 Auto-login useEffect running");
-
-    const autoLogin = async () => {
-      console.log("🟡 Auto-login check at:", new Date().toISOString(), {
-        isConnected,
-        account,
-        hasUser: !!user,
-        isLoggingIn,
-        shouldTrigger: isConnected && account && !user && !isLoggingIn,
-      });
-
-      // If wallet is connected but no user exists and not already logging in
-      if (isConnected && account && !user && !isLoggingIn) {
-        console.log("🟡 ✅ CONDITIONS MET - Auto-login triggered!");
-        console.log("🟡 Wallet:", account);
-        console.log("🟡 User null?:", !user);
-        console.log("🟡 Already logging in?:", isLoggingIn);
-
-        // Show toast to inform user
-        toast({
-          title: "👋 Welcome back!",
-          description: "Completing login...",
-        });
-
-        // Trigger the login flow
-        await handleConnect();
-      } else {
-        console.log("🟡 ❌ Conditions not met:", {
-          reason: !isConnected
-            ? "not connected"
-            : !account
-              ? "no account"
-              : !!user
-                ? "user exists"
-                : isLoggingIn
-                  ? "already logging in"
-                  : "unknown",
-        });
-      }
-    };
-
-    autoLogin();
-  }, [isConnected, account, user, isLoggingIn]);
-
-  // Add this right after your state declarations (around line 20)
-  useEffect(() => {
-    console.log("🔄 Dependencies changed:", {
+    console.log("🔄 Connection state changed:", {
       isConnected,
       account,
-      user: user ? "exists" : "null",
-      isLoggingIn,
+      hasUser: !!user,
+      autoLoginAttempted: autoLoginAttempted.current,
     });
+
+    // If wallet becomes connected, we have an account, no user yet, and we haven't attempted auto-login
+    if (
+      isConnected &&
+      account &&
+      !user &&
+      !isLoggingIn &&
+      !autoLoginAttempted.current
+    ) {
+      console.log("🎯 AUTO-LOGIN TRIGGERED! Connecting wallet:", account);
+      autoLoginAttempted.current = true;
+
+      // Small delay to ensure everything is ready
+      setTimeout(() => {
+        handleConnect();
+      }, 500);
+    }
   }, [isConnected, account, user, isLoggingIn]);
 
   // 🔥 FIX: Auto-open role selector when user has no role
@@ -133,7 +106,7 @@ export function WalletButton() {
   };
 
   const handleConnect = async () => {
-    console.log("🟢 handleConnect CLICKED!");
+    console.log("🟢 handleConnect EXECUTING!");
     setIsLoggingIn(true);
 
     try {
@@ -201,6 +174,9 @@ export function WalletButton() {
     } catch (error: any) {
       console.error("❌ Connection error:", error);
 
+      // Reset auto-login attempt flag on error so it can try again
+      autoLoginAttempted.current = false;
+
       // Handle user rejection separately
       if (error.code === 4001 || error.message?.includes("rejected")) {
         toast({
@@ -227,6 +203,9 @@ export function WalletButton() {
     try {
       disconnect();
       await logout();
+
+      // Reset auto-login flag
+      autoLoginAttempted.current = false;
 
       // Clear any role selector state
       setRoleSelectorOpen(false);
@@ -309,7 +288,7 @@ export function WalletButton() {
             </span>
             {!user && (
               <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded">
-                Logging in...
+                Ready to login...
               </span>
             )}
             {user && !user.role && (
@@ -326,26 +305,16 @@ export function WalletButton() {
           >
             Disconnect
           </Button>
-          {/* 🔧 Temporary debug button */}
+          {/* Manual login button for debugging */}
           {!user && (
-            <button
-              onClick={() => {
-                console.log("🟡 Manual force login clicked");
-                handleConnect();
-              }}
-              style={{
-                marginLeft: "10px",
-                padding: "5px 10px",
-                background: "#f97316",
-                color: "white",
-                borderRadius: "5px",
-                border: "none",
-                cursor: "pointer",
-                fontSize: "12px",
-              }}
+            <Button
+              onClick={handleConnect}
+              variant="default"
+              size="sm"
+              className="h-9 bg-green-600 hover:bg-green-700"
             >
-              🔧 Force Login
-            </button>
+              Login Now
+            </Button>
           )}
         </div>
         <RoleSelector
