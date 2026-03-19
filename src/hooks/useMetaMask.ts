@@ -24,7 +24,7 @@ export function useMetaMask() {
 
     checkMetaMask();
 
-    // Set up listeners but DON'T auto-connect
+    // Set up listeners
     if (window.ethereum) {
       window.ethereum.on("accountsChanged", handleAccountsChanged);
       window.ethereum.on("chainChanged", handleChainChanged);
@@ -34,6 +34,7 @@ export function useMetaMask() {
         .request({ method: "eth_accounts" })
         .then((accounts: string[]) => {
           if (accounts.length > 0) {
+            console.log("🔍 Found existing connected account:", accounts[0]);
             setAccount(accounts[0].toLowerCase());
             setHasAttemptedConnection(true);
           }
@@ -53,14 +54,20 @@ export function useMetaMask() {
   }, []);
 
   const handleAccountsChanged = (accounts: string[]) => {
+    console.log("🔄 Accounts changed:", accounts);
     if (accounts.length === 0) {
-      disconnect();
+      console.log("🔌 No accounts, disconnecting");
+      setAccount("");
+      setHasAttemptedConnection(false);
     } else {
+      console.log("✅ Account set to:", accounts[0]);
       setAccount(accounts[0].toLowerCase());
+      setHasAttemptedConnection(true);
     }
   };
 
   const handleChainChanged = (chainId: string) => {
+    console.log("🔄 Chain changed:", chainId);
     setChainId(parseInt(chainId, 16));
   };
 
@@ -84,7 +91,7 @@ export function useMetaMask() {
         const message = `Login to AcademiChain at ${Date.now()}`;
         const signature = await signer.signMessage(message);
 
-        console.log("✅ Signature obtained");
+        console.log("✅ Signature obtained for:", address);
         setAccount(address);
 
         const network = await provider.getNetwork();
@@ -107,6 +114,7 @@ export function useMetaMask() {
   };
 
   const disconnect = () => {
+    console.log("🔌 Disconnecting wallet");
     setAccount("");
     setChainId(0);
     setHasAttemptedConnection(false);
@@ -117,7 +125,7 @@ export function useMetaMask() {
     account,
     chainId,
     isConnecting,
-    isConnected: !!account && hasAttemptedConnection,
+    isConnected: !!account, // Simple: if we have an account, we're connected
     connect,
     disconnect,
   };

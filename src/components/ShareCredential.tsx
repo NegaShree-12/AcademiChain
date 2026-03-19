@@ -69,6 +69,8 @@ export function ShareCredentialModal({
   // Generate share link via API
   // In ShareCredentialModal.tsx - update the generateShareLink function
 
+  // In ShareCredentialModal.tsx - Update the generateShareLink function
+
   const generateShareLink = async () => {
     setIsGenerating(true);
     try {
@@ -84,6 +86,9 @@ export function ShareCredentialModal({
       // This should return a URL with the shareId that maps to this specific credential
       const shareUrl = response.data.data.shareUrl;
       setShareLink(shareUrl);
+
+      // IMPORTANT: Generate QR code with the FULL URL including shareId
+      // The URL should be something like: https://yourapp.com/verify?shareId=abc-123
       setQrValue(shareUrl);
 
       toast({

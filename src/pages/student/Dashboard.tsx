@@ -370,18 +370,7 @@ const Dashboard: React.FC = () => {
                   <ChevronRight className="h-4 w-4 text-blue-600" />
                 </Link>
 
-                <Link
-                  to="/student/shares"
-                  className="flex items-center justify-between p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-                >
-                  <div className="flex items-center">
-                    <Share2 className="h-5 w-5 text-green-600 mr-3" />
-                    <span className="text-sm font-medium text-green-900">
-                      Manage Share Links
-                    </span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-green-600" />
-                </Link>
+                {/* REMOVED: Manage Share Links option */}
 
                 <Link
                   to="/student/settings"

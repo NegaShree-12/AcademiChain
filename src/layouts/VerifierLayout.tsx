@@ -2,22 +2,12 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  Shield,
-  Search,
-  History,
-  Settings,
-  LogOut,
-  CheckCircle,
-} from "lucide-react";
+import { Shield, LogOut, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const verifierNavItems = [
-  { href: "/verifier", icon: Shield, label: "Dashboard" },
-  { href: "/verifier/verify", icon: Search, label: "Verify Credentials" },
-  { href: "/verifier/history", icon: History, label: "Verification History" },
-  { href: "/verifier/settings", icon: Settings, label: "Settings" },
+  { href: "/verifier", icon: Shield, label: "Verify Credentials" }, // Single navigation item
 ];
 
 export function VerifierLayout({ children }: { children: React.ReactNode }) {

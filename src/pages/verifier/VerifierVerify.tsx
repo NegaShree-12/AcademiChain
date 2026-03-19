@@ -197,59 +197,87 @@ export function VerifierVerify() {
                 <TabsContent value="qr" className="mt-6">
                   <QRCodeReader
                     onScanSuccess={async (decodedText) => {
-                      console.log(
-                        "✅ QR Code scanned successfully:",
-                        decodedText,
-                      );
+                      console.log("✅ Raw QR code data received:", decodedText);
 
                       // Show loading state
                       setIsVerifying(true);
+                      setVerificationResult(null);
+                      setError(null);
 
                       try {
-                        // Try to parse as URL first
-                        try {
-                          const url = new URL(decodedText);
-                          const shareId = url.searchParams.get("shareId");
+                        // Try to extract shareId from URL if it's a full URL
+                        let shareId = decodedText;
 
-                          if (shareId) {
-                            // Verify by shareId
-                            const response =
-                              await verificationAPI.verifyByShareId(shareId);
-                            setVerificationResult(response.data);
-                            toast({
-                              title: response.data.isValid
-                                ? "✅ Verified"
-                                : "❌ Invalid",
-                              description: response.data.message,
-                            });
+                        try {
+                          // Check if it's a URL
+                          const url = new URL(decodedText);
+                          const extractedShareId =
+                            url.searchParams.get("shareId");
+                          if (extractedShareId) {
+                            console.log(
+                              "📌 Extracted shareId from URL:",
+                              extractedShareId,
+                            );
+                            shareId = extractedShareId;
                           } else {
-                            // Treat as direct hash
-                            setHashInput(decodedText);
-                            const response =
-                              await verificationAPI.verifyByHash(decodedText);
-                            setVerificationResult(response.data);
-                            toast({
-                              title: response.data.isValid
-                                ? "✅ Verified"
-                                : "❌ Invalid",
-                              description: response.data.message,
-                            });
+                            // If it's a URL but no shareId, maybe it's a direct credential URL
+                            const pathParts = url.pathname.split("/");
+                            const lastPart = pathParts[pathParts.length - 1];
+                            if (lastPart && lastPart.length > 10) {
+                              shareId = lastPart;
+                            }
                           }
-                        } catch {
-                          // Not a valid URL, treat as direct hash
-                          setHashInput(decodedText);
+                        } catch (e) {
+                          // Not a URL, use the raw decoded text
+                          console.log(
+                            "📌 Using raw decoded text as shareId/hash",
+                          );
+                        }
+
+                        console.log("🔍 Verifying with identifier:", shareId);
+
+                        // Try to verify by shareId first
+                        try {
                           const response =
-                            await verificationAPI.verifyByHash(decodedText);
+                            await verificationAPI.verifyByShareId(shareId);
+                          console.log(
+                            "✅ Share verification response:",
+                            response.data,
+                          );
                           setVerificationResult(response.data);
+
                           toast({
                             title: response.data.isValid
                               ? "✅ Verified"
                               : "❌ Invalid",
-                            description: response.data.message,
+                            description:
+                              response.data.message || "Verification complete",
+                          });
+                        } catch (shareError) {
+                          console.log(
+                            "Share verification failed, trying hash verification",
+                          );
+
+                          // If share verification fails, try hash verification
+                          const hashResponse =
+                            await verificationAPI.verifyByHash(shareId);
+                          console.log(
+                            "✅ Hash verification response:",
+                            hashResponse.data,
+                          );
+                          setVerificationResult(hashResponse.data);
+
+                          toast({
+                            title: hashResponse.data.isValid
+                              ? "✅ Verified"
+                              : "❌ Invalid",
+                            description:
+                              hashResponse.data.message ||
+                              "Verification complete",
                           });
                         }
                       } catch (error: any) {
-                        console.error("Verification error:", error);
+                        console.error("❌ Verification error:", error);
                         setError(
                           error.response?.data?.message ||
                             "Failed to verify credential",

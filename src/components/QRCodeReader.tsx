@@ -1,4 +1,4 @@
-// frontend/src/components/QRCodeReader.tsx
+// In QRCodeReader.tsx - Update the onScanSuccess handler
 
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -51,10 +51,17 @@ export function QRCodeReader({
             aspectRatio: 1,
           },
           (decodedText) => {
+            console.log("✅ Raw QR code data:", decodedText);
+
+            // Stop scanning immediately
             scanner.stop().catch(() => {});
             setShowCamera(false);
             setIsScanning(false);
+
+            // IMPORTANT: Pass the EXACT decoded text to the parent
+            // Don't modify it - let the parent component handle parsing
             onScanSuccess(decodedText);
+
             toast({
               title: "✅ QR Code Scanned",
               description: "Successfully read QR code",
@@ -86,63 +93,6 @@ export function QRCodeReader({
     setIsScanning(false);
   };
 
-  // Alternative QR code reader using jsQR (more reliable for images)
-  const readQRFromImage = async (file: File): Promise<string | null> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          // Create canvas
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx?.drawImage(img, 0, 0);
-
-          // Get image data
-          const imageData = ctx?.getImageData(
-            0,
-            0,
-            canvas.width,
-            canvas.height,
-          );
-          if (!imageData) {
-            reject("Failed to get image data");
-            return;
-          }
-
-          // Try to decode QR code
-          try {
-            // Use jsQR if available, otherwise fallback to html5-qrcode
-            if (typeof jsQR === "function") {
-              const code = jsQR(imageData.data, canvas.width, canvas.height);
-              if (code) {
-                resolve(code.data);
-                return;
-              }
-            }
-
-            // Fallback: extract from filename if it contains a share ID
-            const shareIdMatch = file.name.match(/share[_-]?([a-f0-9-]+)/i);
-            if (shareIdMatch) {
-              resolve(
-                `https://localhost:3000/verify?shareId=${shareIdMatch[1]}`,
-              );
-              return;
-            }
-
-            resolve(null);
-          } catch (error) {
-            reject(error);
-          }
-        };
-        img.src = e.target?.result as string;
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleFileSelect = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -153,15 +103,6 @@ export function QRCodeReader({
       toast({
         title: "Error",
         description: "Please upload an image file",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "Error",
-        description: "Image size must be less than 10MB",
         variant: "destructive",
       });
       return;
@@ -212,6 +153,8 @@ export function QRCodeReader({
       }
 
       if (decodedText) {
+        console.log("✅ Extracted QR data:", decodedText);
+        // Pass the EXACT decoded text
         onScanSuccess(decodedText);
         toast({
           title: "✅ QR Code Read",
@@ -219,7 +162,6 @@ export function QRCodeReader({
         });
         setSelectedImage(null);
       } else {
-        // Show manual entry option
         setShowManualEntry(true);
         toast({
           title: "QR Code Not Detected",
@@ -242,14 +184,56 @@ export function QRCodeReader({
     }
   };
 
+  // Alternative QR code reader using jsQR (more reliable for images)
+  const readQRFromImage = async (file: File): Promise<string | null> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          // Create canvas
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx?.drawImage(img, 0, 0);
+
+          // Get image data
+          const imageData = ctx?.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height,
+          );
+          if (!imageData) {
+            reject("Failed to get image data");
+            return;
+          }
+
+          // Try to decode QR code
+          try {
+            if (typeof jsQR === "function") {
+              const code = jsQR(imageData.data, canvas.width, canvas.height);
+              if (code) {
+                resolve(code.data);
+                return;
+              }
+            }
+            resolve(null);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleManualSubmit = () => {
     if (manualShareId.trim()) {
-      // Check if it's a full URL or just an ID
-      if (manualShareId.includes("verify?shareId=")) {
-        onScanSuccess(manualShareId);
-      } else {
-        onScanSuccess(`https://localhost:3000/verify?shareId=${manualShareId}`);
-      }
+      // Pass the exact manual entry
+      onScanSuccess(manualShareId);
       setShowManualEntry(false);
       setManualShareId("");
       toast({

@@ -1,3 +1,5 @@
+// frontend/src/components/WalletButton.tsx
+
 import { Button } from "@/components/ui/button";
 import { Wallet, Loader2, CheckCircle } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -21,6 +23,19 @@ export function WalletButton() {
   const { logout, user } = useAuth();
   const [roleSelectorOpen, setRoleSelectorOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Debug logging
+  useEffect(() => {
+    console.log("🔵 WalletButton state:", {
+      isConnected,
+      account,
+      isConnecting,
+      isLoggingIn,
+      userExists: !!user,
+      userRole: user?.role,
+      roleSelectorOpen,
+    });
+  }, [isConnected, account, isConnecting, isLoggingIn, user, roleSelectorOpen]);
 
   // Check for existing user role on mount and storage changes
   useEffect(() => {
@@ -46,18 +61,6 @@ export function WalletButton() {
     window.addEventListener("storage", checkUserRole);
     return () => window.removeEventListener("storage", checkUserRole);
   }, []);
-
-  // Debug logging - only in development
-  if (process.env.NODE_ENV === "development") {
-    console.log(
-      "🔵 WalletButton rendered - isConnected:",
-      isConnected,
-      "roleSelectorOpen:",
-      roleSelectorOpen,
-      "account:",
-      account,
-    );
-  }
 
   const truncateAddress = (addr: string) => {
     if (!addr) return "";
@@ -204,8 +207,33 @@ export function WalletButton() {
     );
   }
 
-  // If connected and account exists
-  if (isConnected && account) {
+  // If user is logged in (has a role), show user info
+  if (user?.role) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+          <CheckCircle className="h-4 w-4 text-green-500" />
+          <span className="font-mono text-sm font-medium">
+            {truncateAddress(user.walletAddress || account || "")}
+          </span>
+          <span className="text-xs bg-primary/10 px-2 py-0.5 rounded capitalize">
+            {user.role}
+          </span>
+        </div>
+        <Button
+          onClick={handleDisconnect}
+          variant="outline"
+          size="sm"
+          className="h-9"
+        >
+          Disconnect
+        </Button>
+      </div>
+    );
+  }
+
+  // If MetaMask is connected but user has no role yet
+  if (isConnected && account && !user?.role) {
     return (
       <>
         <div className="flex items-center gap-2">
@@ -213,6 +241,9 @@ export function WalletButton() {
             <CheckCircle className="h-4 w-4 text-green-500" />
             <span className="font-mono text-sm font-medium">
               {truncateAddress(account)}
+            </span>
+            <span className="text-xs bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded">
+              Select Role
             </span>
           </div>
           <Button

@@ -30,7 +30,7 @@ import { IssuedCredentialsPage } from "./pages/institution/IssuedCredentialsPage
 import { InstitutionSettingsPage } from "./pages/institution/SettingsPage";
 
 // Verifier Pages
-import { VerifierVerify } from "./pages/verifier/VerifierVerify"; // Use the full-featured component
+import { VerifierVerify } from "./pages/verifier/VerifierVerify";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
@@ -180,6 +180,7 @@ function App() {
             />
 
             {/* ================= VERIFIER ROUTES ================= */}
+            {/* Single verifier route - both dashboard and verify point here */}
             <Route
               path="/verifier"
               element={
@@ -187,23 +188,13 @@ function App() {
                   allowedRoles={["verifier", "employer", "university"]}
                 >
                   <RoleLayout>
-                    <VerifierVerify /> {/* Using the full-featured component */}
+                    <VerifierVerify />
                   </RoleLayout>
                 </RoleGuard>
               }
             />
-            <Route
-              path="/verifier/verify"
-              element={
-                <RoleGuard
-                  allowedRoles={["verifier", "employer", "university"]}
-                >
-                  <RoleLayout>
-                    <VerifierVerify /> {/* Same full-featured component */}
-                  </RoleLayout>
-                </RoleGuard>
-              }
-            />
+            {/* Removed duplicate /verifier/verify route */}
+
             <Route
               path="/verifier/history"
               element={
