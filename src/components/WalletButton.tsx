@@ -37,9 +37,17 @@ export function WalletButton() {
     });
   }, [isConnected, account, isConnecting, isLoggingIn, user, roleSelectorOpen]);
 
-  // 🔥 FIX: Auto-login when wallet is connected but no user exists
+  // 🔥 FIX: Auto-login when wallet is connected but no user exists (with detailed logging)
   useEffect(() => {
     const autoLogin = async () => {
+      console.log("🟡 Auto-login check:", {
+        isConnected,
+        account,
+        hasUser: !!user,
+        isLoggingIn,
+        shouldTrigger: isConnected && account && !user && !isLoggingIn,
+      });
+
       // If wallet is connected but no user exists and not already logging in
       if (isConnected && account && !user && !isLoggingIn) {
         console.log("🟡 Auto-login triggered - wallet connected but no user");
@@ -290,6 +298,27 @@ export function WalletButton() {
           >
             Disconnect
           </Button>
+          {/* 🔧 Temporary debug button */}
+          {!user && (
+            <button
+              onClick={() => {
+                console.log("🟡 Manual force login clicked");
+                handleConnect();
+              }}
+              style={{
+                marginLeft: "10px",
+                padding: "5px 10px",
+                background: "#f97316",
+                color: "white",
+                borderRadius: "5px",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "12px",
+              }}
+            >
+              🔧 Force Login
+            </button>
+          )}
         </div>
         <RoleSelector
           open={roleSelectorOpen}
