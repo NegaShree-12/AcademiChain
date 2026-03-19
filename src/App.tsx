@@ -15,7 +15,7 @@ import { VerifyCredential } from "./pages/VerifyCredential";
 import NotFound from "./pages/NotFound";
 
 // Student Pages
-import StudentDashboard from "./pages/student/dashboard";
+import StudentDashboard from "./pages/student/Dashboard";
 import CredentialDetailPage from "./pages/student/CredentialDetailPage";
 import CredentialsPage from "./pages/student/CredentialsPage";
 import { SettingsPage } from "./pages/student/SettingsPage";
