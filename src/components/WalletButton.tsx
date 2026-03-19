@@ -38,10 +38,47 @@ export function WalletButton() {
   }, [isConnected, account, isConnecting, isLoggingIn, user, roleSelectorOpen]);
 
   // 🔥 FIX: Auto-open role selector when wallet is connected but user has no role
+  // 🔥 IMPROVED FIX: Auto-open role selector with localStorage check
   useEffect(() => {
-    if (isConnected && account && user && !user.role) {
-      console.log("🎭 User has no role, auto-opening role selector");
-      setRoleSelectorOpen(true);
+    // Check if wallet is connected
+    if (isConnected && account) {
+      console.log("🎭 Wallet connected, checking user role...");
+
+      // Check localStorage directly
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          if (!parsedUser.role) {
+            console.log(
+              "🎭 User in localStorage has no role, opening selector",
+            );
+            setRoleSelectorOpen(true);
+          }
+        } catch (e) {
+          console.error("Error parsing stored user:", e);
+        }
+      } else {
+        console.log(
+          "🎭 No user in localStorage, checking with auth context...",
+        );
+
+        // If no user in localStorage, wait a bit and check again
+        // This gives time for the auth context to load
+        const timeoutId = setTimeout(() => {
+          if (user && !user.role) {
+            console.log(
+              "🎭 User context loaded with no role, opening selector",
+            );
+            setRoleSelectorOpen(true);
+          } else if (!user) {
+            console.log("🎭 User still null, might need to create account");
+            // You might want to trigger wallet login here
+          }
+        }, 1000);
+
+        return () => clearTimeout(timeoutId);
+      }
     }
   }, [isConnected, account, user]);
 
