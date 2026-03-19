@@ -37,6 +37,14 @@ export function WalletButton() {
     });
   }, [isConnected, account, isConnecting, isLoggingIn, user, roleSelectorOpen]);
 
+  // 🔥 FIX: Auto-open role selector when wallet is connected but user has no role
+  useEffect(() => {
+    if (isConnected && account && user && !user.role) {
+      console.log("🎭 User has no role, auto-opening role selector");
+      setRoleSelectorOpen(true);
+    }
+  }, [isConnected, account, user]);
+
   // Check for existing user role on mount and storage changes
   useEffect(() => {
     const checkUserRole = () => {
