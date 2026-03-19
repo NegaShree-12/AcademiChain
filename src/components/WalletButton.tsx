@@ -37,50 +37,34 @@ export function WalletButton() {
     });
   }, [isConnected, account, isConnecting, isLoggingIn, user, roleSelectorOpen]);
 
-  // 🔥 FIX: Auto-open role selector when wallet is connected but user has no role
-  // 🔥 IMPROVED FIX: Auto-open role selector with localStorage check
+  // 🔥 FIX: Auto-login when wallet is connected but no user exists
   useEffect(() => {
-    // Check if wallet is connected
-    if (isConnected && account) {
-      console.log("🎭 Wallet connected, checking user role...");
+    const autoLogin = async () => {
+      // If wallet is connected but no user exists and not already logging in
+      if (isConnected && account && !user && !isLoggingIn) {
+        console.log("🟡 Auto-login triggered - wallet connected but no user");
 
-      // Check localStorage directly
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          if (!parsedUser.role) {
-            console.log(
-              "🎭 User in localStorage has no role, opening selector",
-            );
-            setRoleSelectorOpen(true);
-          }
-        } catch (e) {
-          console.error("Error parsing stored user:", e);
-        }
-      } else {
-        console.log(
-          "🎭 No user in localStorage, checking with auth context...",
-        );
+        // Show toast to inform user
+        toast({
+          title: "👋 Welcome back!",
+          description: "Completing login...",
+        });
 
-        // If no user in localStorage, wait a bit and check again
-        // This gives time for the auth context to load
-        const timeoutId = setTimeout(() => {
-          if (user && !user.role) {
-            console.log(
-              "🎭 User context loaded with no role, opening selector",
-            );
-            setRoleSelectorOpen(true);
-          } else if (!user) {
-            console.log("🎭 User still null, might need to create account");
-            // You might want to trigger wallet login here
-          }
-        }, 1000);
-
-        return () => clearTimeout(timeoutId);
+        // Trigger the login flow
+        await handleConnect();
       }
+    };
+
+    autoLogin();
+  }, [isConnected, account, user, isLoggingIn]);
+
+  // 🔥 FIX: Auto-open role selector when user has no role
+  useEffect(() => {
+    if (user && !user.role) {
+      console.log("🎭 User has no role, opening role selector");
+      setRoleSelectorOpen(true);
     }
-  }, [isConnected, account, user]);
+  }, [user]);
 
   // Check for existing user role on mount and storage changes
   useEffect(() => {
@@ -278,7 +262,7 @@ export function WalletButton() {
   }
 
   // If MetaMask is connected but user has no role yet
-  if (isConnected && account && !user?.role) {
+  if (isConnected && account) {
     return (
       <>
         <div className="flex items-center gap-2">
@@ -287,9 +271,16 @@ export function WalletButton() {
             <span className="font-mono text-sm font-medium">
               {truncateAddress(account)}
             </span>
-            <span className="text-xs bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded">
-              Select Role
-            </span>
+            {!user && (
+              <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded">
+                Logging in...
+              </span>
+            )}
+            {user && !user.role && (
+              <span className="text-xs bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded">
+                Select Role
+              </span>
+            )}
           </div>
           <Button
             onClick={handleDisconnect}
